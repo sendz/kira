@@ -116,6 +116,7 @@ export const ScratchPadWindow = GObject.registerClass({
 
         let offset = 0;
         for (const line of lines) {
+            // Heading Tags
             const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
             if (headingMatch) {
                 const level = match[1].length;
@@ -131,6 +132,7 @@ export const ScratchPadWindow = GObject.registerClass({
                 }
             }
 
+            // Bold Tags
             const boldRegex = /\*\*(.+?)\*\*/g;
             let match;
             while ((match = boldRegex.exec(line)) !== null) {
@@ -143,6 +145,7 @@ export const ScratchPadWindow = GObject.registerClass({
                 );
             }
 
+            // Italic Tags
             const italicRegex = /(?<![\w_])_([^_\n]+?)_(?![\w_])/g;
             while ((match = italicRegex.exec(line)) !== null) {
                 const contentStart = offset + match.index + 1;
