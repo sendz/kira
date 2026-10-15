@@ -22,6 +22,8 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 
+import {setupMarkdownTags} from './markdown.js'
+
 export const ScratchPadWindow = GObject.registerClass({
     GTypeName: 'ScratchPadWindow',
     Template: 'resource:///com/sendyyeah/ScratchPad/window.ui',
@@ -31,84 +33,108 @@ export const ScratchPadWindow = GObject.registerClass({
         super({ application });
 
         this._buffer = this._text_view.get_buffer();
+        this._isUpdating = false;
+        this._resultMarks = [];
 
-        this._setupTags();
+        setupMarkdownTags(this._buffer);
 
         this._buffer.connect('changed', () => {
-            this._applyMarkdown();
+            if (this._isUpdating) return true;
+
+            this._isUpdating = true;
+
+            try {
+                this._clearResults();
+                this._applyMarkdown();
+                this._insertResults();
+            } finally {
+                this._isUpdating = false;
+            }
         })
     }
 
-    _setupTags() {
+    _clearResults() {
         const buffer = this._buffer;
-        const tagTable = buffer.get_tag_table();
-        this._setupHeadings(buffer, tagTable);
-        this._setupBold(buffer, tagTable);
-        this._setupItalic(buffer, tagTable);
-        this._setupBlockquote(buffer, tagTable);
-        this._setupList(buffer, tagTable);
+
+        for (const mark of this._resultMarks) {
+            const iter = buffer.get_iter_at_mark(mark);
+            const endIter = iter.copy();
+            endIter.forward_to_line_end();
+
+            buffer.delete(iter, endIter);
+            buffer.delete_mark(mark);
+        }
+        this._resultMarks = [];
     }
 
-    _setupHeadings (buffer, tagTable) {
-        const headings = [
-            { name: 'h1', scale: 2, above: 14, below: 8 },
-            { name: 'h2', scale: 1.8, above: 12, below: 6 },
-            { name: 'h3', scale: 1.6, above: 10, below: 5 },
-            { name: 'h4', scale: 1.4, above: 8, below: 4 },
-            { name: 'h5', scale: 1.2, above: 6, below: 3 },
-            { name: 'h6', scale: 1, above: 4, below: 2 },
-        ];
+    _insertResults() {
+        const buffer = this._buffer;
+        const start = buffer.get_start_iter();
+        const end = buffer.get_end_iter();
+        const text = buffer.get_text(start, end, true);
+        const lines = text.split('\n');
 
-        for (const h of headings) {
-            const tag = new Gtk.TextTag({
-                name: h.name,
-                scale: h.scale,
-                weight: 700,
-                pixels_above_lines: h.above,
-                pixels_below_lines: h.below,
-            });
-            tagTable.add(tag);
+        const scope = {};
+        const updates = [];     // { lineIndex, value }
+
+        let offset = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const lineStart = offset;
+            offset += line.length + 1;
+
+            // Skip baris kosong, heading, blockquote
+            if (!line.trim()) continue;
+            if (/^#{1,6}\s/.test(line)) continue;
+            if (/^>/.test(line)) continue;
+
+            const eqIndex = line.indexOf('=');
+            if (eqIndex === -1) continue;
+
+            const lhs = line.substring(0, eqIndex).trim();
+            const rhs = line.substring(eqIndex + 1).trim();
+            if (!rhs) continue;
+
+            // Bersihkan markdown dari RHS
+            let expr = this._stripMarkdown(rhs);
+
+            // Normalisasi angka Indonesia: 75.000 -> 75000
+            expr = this._normalizeNumbers(expr);
+
+            // Evaluasi
+            const value = this._evaluate(expr, scope);
+            if (value === null) continue;
+
+            // Simpan sebagai variabel jika LHS adalah identifier
+            const varMatch = lhs.match(/^([A-Za-z_][A-Za-z0-9_]*)/);
+            if (varMatch) {
+                scope[varMatch[1]] = value;
+            }
+
+            updates.push({ lineIndex: i, value });
         }
 
-        const h6 = tagTable.lookup('h6');
-        if (h6) {
-            h6.set_property('foreground', '#888888');
-            h6.set_property('style', 2);
+        // Sisipkan dari baris paling bawah ke atas agar offset tidak bergeser
+        for (let i = updates.length - 1; i >= 0; i--) {
+            const { lineIndex, value } = updates[i];
+            const iter = buffer.get_iter_at_line(lineIndex);
+            iter.forward_to_line_end();
+
+            // Simpan mark di posisi ini (left gravity = true)
+            const mark = buffer.create_mark(null, iter, true);
+            this._resultMarks.push(mark);
+
+            const formatted = `   = ${this._formatNumber(value)}`;
+            const startOffset = iter.get_offset();
+            buffer.insert(iter, formatted);
+
+            // Terapkan tag calc_result
+            buffer.apply_tag_by_name(
+                'calc_result',
+                buffer.get_iter_at_offset(startOffset),
+                buffer.get_iter_at_offset(startOffset + formatted.length)
+            );
         }
-    }
-
-    _setupBold(buffer, tagTable) {
-        const boldTag = new Gtk.TextTag({
-            name: 'bold',
-            weight: 700,
-        });
-        tagTable.add(boldTag);
-    }
-
-    _setupItalic(buffer, tagTable) {
-        const italicTag = new Gtk.TextTag({
-            name: 'italic',
-            style: 2,
-        });
-        tagTable.add(italicTag);
-    }
-
-    _setupBlockquote(buffer, tagTable) {
-        const blockquoteTag = new Gtk.TextTag({
-            name: 'blockquote',
-            foreground: '#666666',
-            style: 2,                  // italic
-            left_margin: 24,
-        });
-        tagTable.add(blockquoteTag);
-    }
-
-    _setupList(buffer, tagTable) {
-        const listTag = new Gtk.TextTag({
-            name: 'list_item',
-            left_margin: 24,
-        });
-        tagTable.add(listTag);
     }
 
     _applyMarkdown() {
