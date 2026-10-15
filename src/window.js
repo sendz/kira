@@ -43,11 +43,11 @@ export const ScratchPadWindow = GObject.registerClass({
         const buffer = this._buffer;
         const tagTable = buffer.get_tag_table();
         this._setupHeadings(buffer, tagTable);
+        this._setupBold(buffer, tagTable);
+        this._setupItalic(buffer, tagTable);
     }
 
     _setupHeadings (buffer, tagTable) {
-
-        // Konfigurasi tiap level heading
         const headings = [
             { name: 'h1', scale: 2, above: 14, below: 8 },
             { name: 'h2', scale: 1.8, above: 12, below: 6 },
@@ -68,13 +68,27 @@ export const ScratchPadWindow = GObject.registerClass({
             tagTable.add(tag);
         }
 
-        // Heading 6 dibedakan: abu-abu & italic agar tetap terlihat
-        // sebagai heading meskipun ukurannya sama dengan body
         const h6 = tagTable.lookup('h6');
         if (h6) {
             h6.set_property('foreground', '#888888');
-            h6.set_property('style', 2);      // 2 = Pango.Style.ITALIC
+            h6.set_property('style', 2);
         }
+    }
+
+    _setupBold(buffer, tagTable) {
+        const boldTag = new Gtk.TextTag({
+            name: 'bold',
+            weight: 700,
+        });
+        tagTable.add(boldTag);
+    }
+
+    _setupItalic(buffer, tagTable) {
+        const italicTag = new Gtk.TextTag({
+            name: 'italic',
+            style: 2,
+        });
+        tagTable.add(italicTag);
     }
 
     _applyMarkdown() {
@@ -82,15 +96,18 @@ export const ScratchPadWindow = GObject.registerClass({
         const start = buffer.get_start_iter();
         const end = buffer.get_end_iter();
 
-        this._cleanHeadingTags(buffer, start, end);
+        this._cleanTags(buffer, start, end);
 
         this._scanInputs(buffer, start, end)
     }
 
-    _cleanHeadingTags(buffer, start, end) {
+    _cleanTags(buffer, start, end) {
         for (let i = 1; i <= 6; i++) {
             buffer.remove_tag_by_name(`h${i}`, start, end);
         }
+
+        buffer.remove_tag_by_name('bold', start, end);
+        buffer.remove_tag_by_name('italic', start, end);
     }
 
     _scanInputs(buffer, start, end) {
@@ -99,8 +116,8 @@ export const ScratchPadWindow = GObject.registerClass({
 
         let offset = 0;
         for (const line of lines) {
-            const match = line.match(/^(#{1,6})\s+(.*)$/);
-            if (match) {
+            const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+            if (headingMatch) {
                 const level = match[1].length;
                 const contentStart = offset + level + 1;
                 const contentEnd = offset + line.length;
@@ -112,6 +129,29 @@ export const ScratchPadWindow = GObject.registerClass({
                         buffer.get_iter_at_offset(contentEnd)
                     );
                 }
+            }
+
+            const boldRegex = /\*\*(.+?)\*\*/g;
+            let match;
+            while ((match = boldRegex.exec(line)) !== null) {
+                const contentStart = offset + match.index + 2;
+                const contentEnd = contentStart + match[1].length;
+                buffer.apply_tag_by_name(
+                    'bold',
+                    buffer.get_iter_at_offset(contentStart),
+                    buffer.get_iter_at_offset(contentEnd)
+                );
+            }
+
+            const italicRegex = /(?<![\w_])_([^_\n]+?)_(?![\w_])/g;
+            while ((match = italicRegex.exec(line)) !== null) {
+                const contentStart = offset + match.index + 1;
+                const contentEnd = contentStart + match[1].length;
+                buffer.apply_tag_by_name(
+                    'italic',
+                    buffer.get_iter_at_offset(contentStart),
+                    buffer.get_iter_at_offset(contentEnd)
+                );
             }
 
             offset += line.length + 1;
