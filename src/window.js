@@ -25,7 +25,7 @@ import Adw from 'gi://Adw';
 export const ScratchPadWindow = GObject.registerClass({
     GTypeName: 'ScratchPadWindow',
     Template: 'resource:///com/sendyyeah/ScratchPad/window.ui',
-    InternalChildren: ['label'],
+    InternalChildren: ['text_view'],
 }, class ScratchPadWindow extends Adw.ApplicationWindow {
     constructor(application) {
         super({ application });

@@ -21,11 +21,19 @@
           </object>
         </child>
         <property name="content">
-          <object class="GtkLabel" id="label">
-            <property name="label" translatable="yes">Hello, World!</property>
-            <style>
-              <class name="title-1"/>
-            </style>
+          <object class="GtkScrolledWindow">
+            <property name="vexpand">True</property>
+            <property name="hscrollbar-policy">never</property>
+            <child>
+              <object class="GtkTextView" id="text_view">
+                <property name="wrap-mode">word-char</property>
+                <property name="left-margin">16</property>
+                <property name="right-margin">16</property>
+                <property name="top-margin">16</property>
+                <property name="bottom-margin">16</property>
+                <property name="monospace">True</property>
+              </object>
+            </child>
           </object>
         </property>
       </object>
