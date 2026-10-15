@@ -42,33 +42,39 @@ export const ScratchPadWindow = GObject.registerClass({
     _setupTags() {
         const buffer = this._buffer;
         const tagTable = buffer.get_tag_table();
+        this._setupHeadings(buffer, tagTable);
+    }
 
-        const h1 = new Gtk.TextTag({
-            name: 'h1',
-            scale: 1.8,
-            weight: 700,
-            pixels_above_lines: 12,
-            pixels_below_lines: 6,
-        });
-        tagTable.add(h1);
+    _setupHeadings (buffer, tagTable) {
 
-        const h2 = new Gtk.TextTag({
-            name: 'h2',
-            scale: 1.4,
-            weight: 700,
-            pixels_above_lines: 8,
-            pixels_below_lines: 4,
-        });
-        tagTable.add(h2);
+        // Konfigurasi tiap level heading
+        const headings = [
+            { name: 'h1', scale: 2, above: 14, below: 8 },
+            { name: 'h2', scale: 1.8, above: 12, below: 6 },
+            { name: 'h3', scale: 1.6, above: 10, below: 5 },
+            { name: 'h4', scale: 1.4, above: 8, below: 4 },
+            { name: 'h5', scale: 1.2, above: 6, below: 3 },
+            { name: 'h6', scale: 1, above: 4, below: 2 },
+        ];
 
-        const h3 = new Gtk.TextTag({
-            name: 'h3',
-            scale: 1.2,
-            weight: 700,
-            pixels_above_lines: 6,
-            pixels_below_lines: 2,
-        });
-        tagTable.add(h3);
+        for (const h of headings) {
+            const tag = new Gtk.TextTag({
+                name: h.name,
+                scale: h.scale,
+                weight: 700,
+                pixels_above_lines: h.above,
+                pixels_below_lines: h.below,
+            });
+            tagTable.add(tag);
+        }
+
+        // Heading 6 dibedakan: abu-abu & italic agar tetap terlihat
+        // sebagai heading meskipun ukurannya sama dengan body
+        const h6 = tagTable.lookup('h6');
+        if (h6) {
+            h6.set_property('foreground', '#888888');
+            h6.set_property('style', 2);      // 2 = Pango.Style.ITALIC
+        }
     }
 
     _applyMarkdown() {
@@ -82,8 +88,8 @@ export const ScratchPadWindow = GObject.registerClass({
     }
 
     _cleanHeadingTags(buffer, start, end) {
-        for (const tagName of ['h1', 'h2', 'h3']) {
-            buffer.remove_tag_by_name(tagName, start, end);
+        for (let i = 1; i <= 6; i++) {
+            buffer.remove_tag_by_name(`h${i}`, start, end);
         }
     }
 
@@ -93,7 +99,7 @@ export const ScratchPadWindow = GObject.registerClass({
 
         let offset = 0;
         for (const line of lines) {
-            const match = line.match(/^(#{1,3})\s+(.*)$/);
+            const match = line.match(/^(#{1,6})\s+(.*)$/);
             if (match) {
                 const level = match[1].length;
                 const contentStart = offset + level + 1;
