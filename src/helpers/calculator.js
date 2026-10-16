@@ -21,6 +21,8 @@
 import { stripMarkdown } from './markdown.js';
 import { normalizeNumbers, formatNumber } from './format.js';
 
+const TOTAL_LINE_REGEX = /^total\b\s*(?:=\s*(.*))?$/i;
+
 export function clearResults(buffer, results) {
     for (const { start, end } of results) {
         const startIter = buffer.get_iter_at_mark(start);
@@ -46,14 +48,37 @@ export function insertResults(buffer, results) {
 function collectResults(text) {
     const scope = {};
     const results = [];
+    let sectionTotal = 0;
 
     for (const [lineIndex, line] of text.split('\n').entries()) {
+        const total = line.match(TOTAL_LINE_REGEX);
+        if (total) {
+            const value = totalValue(total[1], scope, sectionTotal);
+            if (value !== null) {
+                scope.total = value;
+                results.push({ lineIndex, value });
+            }
+            sectionTotal = 0;
+            continue;
+        }
+
         const value = evaluateLine(line, scope);
-        if (value !== null)
-            results.push({ lineIndex, value });
+        if (value === null)
+            continue;
+
+        sectionTotal += value;
+        results.push({ lineIndex, value });
     }
 
     return results;
+}
+
+function totalValue(expression, scope, sectionTotal) {
+    const trimmed = (expression ?? '').trim();
+    if (!trimmed)
+        return sectionTotal;
+
+    return evaluate(normalizeNumbers(stripMarkdown(trimmed)), scope);
 }
 
 function evaluateLine(line, scope) {
@@ -94,7 +119,6 @@ function insertResult(buffer, results, { lineIndex, value }) {
     const resultStart = buffer.get_iter_at_offset(lineEnd);
     const resultEnd = buffer.get_iter_at_offset(lineEnd + result.length);
 
-    // Tab stops are paragraph attributes, so the tag must reach the line start.
     buffer.apply_tag_by_name('calc_line', buffer.get_iter_at_offset(lineStart), resultEnd);
     buffer.apply_tag_by_name('calc_result', resultStart, resultEnd);
 
