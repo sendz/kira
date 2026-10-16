@@ -19,6 +19,7 @@
  */
 
 import GObject from 'gi://GObject';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 
@@ -36,23 +37,45 @@ export const ScratchPadWindow = GObject.registerClass({
 
         this._buffer = this._text_view.get_buffer();
         this._isUpdating = false;
-        this._resultMarks = [];
+        this._refreshScheduled = false;
+        this._results = [];
 
         setupMarkdownTags(this._buffer);
 
         this._buffer.connect('changed', () => {
-            if (this._isUpdating) return true;
+            if (this._isUpdating || this._refreshScheduled) return;
 
-            this._isUpdating = true;
-
-            try {
-                clearResults(this._buffer, this._resultMarks);
-                applyMarkdown(this._buffer);
-                this._insertResults();
-            } finally {
-                this._isUpdating = false;
-            }
+            this._refreshScheduled = true;
+            GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                this._refreshScheduled = false;
+                this._refresh();
+                return GLib.SOURCE_REMOVE;
+            });
         })
+    }
+
+    _refresh() {
+        if (this._isUpdating) return;
+
+        const buffer = this._buffer;
+        this._isUpdating = true;
+
+        try {
+            const caret = buffer.create_mark(
+                null,
+                buffer.get_iter_at_mark(buffer.get_insert()),
+                true
+            );
+
+            clearResults(buffer, this._results);
+            applyMarkdown(buffer);
+            this._insertResults();
+
+            buffer.place_cursor(buffer.get_iter_at_mark(caret));
+            buffer.delete_mark(caret);
+        } finally {
+            this._isUpdating = false;
+        }
     }
 
     _insertResults() {
@@ -71,7 +94,7 @@ export const ScratchPadWindow = GObject.registerClass({
             const lineStart = offset;
             offset += line.length + 1;
 
-            // Skip baris kosong, heading, blockquote
+            // Skip empty lines, heading, blockquote
             if (!line.trim()) continue;
             if (/^#{1,6}\s/.test(line)) continue;
             if (/^>/.test(line)) continue;
@@ -83,17 +106,16 @@ export const ScratchPadWindow = GObject.registerClass({
             const rhs = line.substring(eqIndex + 1).trim();
             if (!rhs) continue;
 
-            // Bersihkan markdown dari RHS
+            // Clear markdown from RHS
             let expr = stripMarkdown(rhs);
 
-            // Normalisasi angka Indonesia: 75.000 -> 75000
+            // Normalize Indonesia number format before calculate: 75.000 -> 75000
             expr = normalizeNumbers(expr);
 
-            // Evaluasi
             const value = evaluate(expr, scope);
             if (value === null) continue;
 
-            // Simpan sebagai variabel jika LHS adalah identifier
+            // Save as variable if LHS is identifier
             const varMatch = lhs.match(/^([A-Za-z_][A-Za-z0-9_]*)/);
             if (varMatch) {
                 scope[varMatch[1]] = value;
@@ -102,21 +124,24 @@ export const ScratchPadWindow = GObject.registerClass({
             updates.push({ lineIndex: i, value });
         }
 
-        // Sisipkan dari baris paling bawah ke atas agar offset tidak bergeser
         for (let i = updates.length - 1; i >= 0; i--) {
             const { lineIndex, value } = updates[i];
-            const iter = buffer.get_iter_at_line(lineIndex);
-            iter.forward_to_line_end();
+            const [ok, iter] = buffer.get_iter_at_line(lineIndex);
 
-            // Simpan mark di posisi ini (left gravity = true)
-            const mark = buffer.create_mark(null, iter, true);
-            this._resultMarks.push(mark);
+            if (!ok) continue;
+            iter.forward_to_line_end();
 
             const formatted = `   = ${formatNumber(value)}`;
             const startOffset = iter.get_offset();
-            buffer.insert(iter, formatted);
 
-            // Terapkan tag calc_result
+            buffer.insert(iter, formatted, -1);
+
+            const start = buffer.create_mark(null,
+                buffer.get_iter_at_offset(startOffset), false);
+            const end = buffer.create_mark(null,
+                buffer.get_iter_at_offset(startOffset + formatted.length), true);
+            this._results.push({ start, end });
+
             buffer.apply_tag_by_name(
                 'calc_result',
                 buffer.get_iter_at_offset(startOffset),

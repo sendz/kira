@@ -18,16 +18,16 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-export function clearResults(buffer, marks) {
-    for (const mark of marks) {
-        const iter = buffer.get_iter_at_mark(mark);
-        const endIter = iter.copy();
-        endIter.forward_to_line_end();
+export function clearResults(buffer, results) {
+    for (const { start, end } of results) {
+        const startIter = buffer.get_iter_at_mark(start);
+        const endIter = buffer.get_iter_at_mark(end);
 
-        buffer.delete(iter, endIter);
-        buffer.delete_mark(mark);
+        buffer.delete(startIter, endIter);
+        buffer.delete_mark(start);
+        buffer.delete_mark(end);
     }
-    marks = [];
+    results.length = 0;
 }
 
 export function evaluate(expr, scope) {
