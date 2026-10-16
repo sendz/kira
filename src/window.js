@@ -23,8 +23,8 @@ import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 
 import { setupMarkdownTags, applyMarkdown, stripMarkdown } from './helpers/markdown.js';
-import { clearResults } from './helpers/calculator.js';
-import { normalizeNumbers } from './helpers/format.js';
+import { clearResults, evaluate } from './helpers/calculator.js';
+import { normalizeNumbers, formatNumber } from './helpers/format.js';
 
 export const ScratchPadWindow = GObject.registerClass({
     GTypeName: 'ScratchPadWindow',
@@ -90,7 +90,7 @@ export const ScratchPadWindow = GObject.registerClass({
             expr = normalizeNumbers(expr);
 
             // Evaluasi
-            const value = this._evaluate(expr, scope);
+            const value = evaluate(expr, scope);
             if (value === null) continue;
 
             // Simpan sebagai variabel jika LHS adalah identifier
@@ -112,7 +112,7 @@ export const ScratchPadWindow = GObject.registerClass({
             const mark = buffer.create_mark(null, iter, true);
             this._resultMarks.push(mark);
 
-            const formatted = `   = ${this._formatNumber(value)}`;
+            const formatted = `   = ${formatNumber(value)}`;
             const startOffset = iter.get_offset();
             buffer.insert(iter, formatted);
 
