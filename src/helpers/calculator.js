@@ -18,6 +18,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { stripMarkdown } from './markdown.js';
+import { normalizeNumbers, formatNumber } from './format.js';
+
 export function clearResults(buffer, results) {
     for (const { start, end } of results) {
         const startIter = buffer.get_iter_at_mark(start);
@@ -28,6 +31,77 @@ export function clearResults(buffer, results) {
         buffer.delete_mark(end);
     }
     results.length = 0;
+}
+
+export function insertResults(buffer, results) {
+    const start = buffer.get_start_iter();
+    const end = buffer.get_end_iter();
+
+    buffer.remove_tag_by_name('calc_line', start, end);
+
+    for (const result of collectResults(buffer.get_text(start, end, true)))
+        insertResult(buffer, results, result);
+}
+
+function collectResults(text) {
+    const scope = {};
+    const results = [];
+
+    for (const [lineIndex, line] of text.split('\n').entries()) {
+        const value = evaluateLine(line, scope);
+        if (value !== null)
+            results.push({ lineIndex, value });
+    }
+
+    return results;
+}
+
+function evaluateLine(line, scope) {
+    if (!line.trim() || /^#{1,6}\s/.test(line) || /^>/.test(line))
+        return null;
+
+    const separator = line.indexOf('=');
+    if (separator === -1)
+        return null;
+
+    const expression = line.substring(separator + 1).trim();
+    if (!expression)
+        return null;
+
+    const value = evaluate(normalizeNumbers(stripMarkdown(expression)), scope);
+    if (value === null)
+        return null;
+
+    const name = line.substring(0, separator).trim().match(/^([A-Za-z_][A-Za-z0-9_]*)/);
+    if (name)
+        scope[name[1]] = value;
+
+    return value;
+}
+
+function insertResult(buffer, results, { lineIndex, value }) {
+    const [ok, iter] = buffer.get_iter_at_line(lineIndex);
+    if (!ok)
+        return;
+
+    const lineStart = iter.get_offset();
+    iter.forward_to_line_end();
+    const lineEnd = iter.get_offset();
+
+    const result = `\t= ${formatNumber(value)}`;
+    buffer.insert(iter, result, -1);
+
+    const resultStart = buffer.get_iter_at_offset(lineEnd);
+    const resultEnd = buffer.get_iter_at_offset(lineEnd + result.length);
+
+    // Tab stops are paragraph attributes, so the tag must reach the line start.
+    buffer.apply_tag_by_name('calc_line', buffer.get_iter_at_offset(lineStart), resultEnd);
+    buffer.apply_tag_by_name('calc_result', resultStart, resultEnd);
+
+    results.push({
+        start: buffer.create_mark(null, resultStart, false),
+        end: buffer.create_mark(null, resultEnd, true),
+    });
 }
 
 export function evaluate(expr, scope) {

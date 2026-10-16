@@ -18,7 +18,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
- export function normalizeNumbers(s) {
+export function normalizeNumbers(s) {
     return s.replace(/(\d{1,3})(\.\d{3})+(?!\d)/g, (m) => m.replace(/\./g, ''));
 }
 

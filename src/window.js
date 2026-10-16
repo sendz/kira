@@ -20,12 +20,10 @@
 
 import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
-import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 
-import { setupMarkdownTags, applyMarkdown, stripMarkdown } from './helpers/markdown.js';
-import { clearResults, evaluate } from './helpers/calculator.js';
-import { normalizeNumbers, formatNumber } from './helpers/format.js';
+import { setupMarkdownTags, applyMarkdown, setResultTabStop } from './helpers/markdown.js';
+import { clearResults, insertResults } from './helpers/calculator.js';
 
 export const ScratchPadWindow = GObject.registerClass({
     GTypeName: 'ScratchPadWindow',
@@ -36,118 +34,65 @@ export const ScratchPadWindow = GObject.registerClass({
         super({ application });
 
         this._buffer = this._text_view.get_buffer();
+        this._results = [];
         this._isUpdating = false;
         this._refreshScheduled = false;
-        this._results = [];
+        this._tabStopScheduled = false;
+        this._pendingTabWidth = 0;
 
         setupMarkdownTags(this._buffer);
+        this._followViewWidth();
+        this._buffer.connect('changed', () => this._scheduleRefresh());
+    }
 
-        this._buffer.connect('changed', () => {
-            if (this._isUpdating || this._refreshScheduled) return;
+    _followViewWidth() {
+        const adjustment = this._text_view.get_hadjustment();
+        if (adjustment)
+            adjustment.connect('notify::page-size', () =>
+                this._scheduleTabStop(adjustment.get_page_size()));
+    }
 
-            this._refreshScheduled = true;
-            GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-                this._refreshScheduled = false;
-                this._refresh();
-                return GLib.SOURCE_REMOVE;
-            });
-        })
+    _scheduleRefresh() {
+        if (this._isUpdating || this._refreshScheduled)
+            return;
+
+        this._refreshScheduled = true;
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._refreshScheduled = false;
+            this._refresh();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _refresh() {
-        if (this._isUpdating) return;
-
         const buffer = this._buffer;
+        const caret = buffer.create_mark(null, buffer.get_iter_at_mark(buffer.get_insert()), true);
+
         this._isUpdating = true;
-
         try {
-            const caret = buffer.create_mark(
-                null,
-                buffer.get_iter_at_mark(buffer.get_insert()),
-                true
-            );
-
             clearResults(buffer, this._results);
             applyMarkdown(buffer);
-            this._insertResults();
-
-            buffer.place_cursor(buffer.get_iter_at_mark(caret));
-            buffer.delete_mark(caret);
+            insertResults(buffer, this._results);
         } finally {
             this._isUpdating = false;
         }
+
+        buffer.place_cursor(buffer.get_iter_at_mark(caret));
+        buffer.delete_mark(caret);
     }
 
-    _insertResults() {
-        const buffer = this._buffer;
-        const start = buffer.get_start_iter();
-        const end = buffer.get_end_iter();
-        const text = buffer.get_text(start, end, true);
-        const lines = text.split('\n');
+    _scheduleTabStop(viewWidth) {
+        const margins = this._text_view.get_left_margin() + this._text_view.get_right_margin();
+        this._pendingTabWidth = viewWidth - margins;
 
-        const scope = {};
-        const updates = [];     // { lineIndex, value }
+        if (this._pendingTabWidth <= 0 || this._tabStopScheduled)
+            return;
 
-        let offset = 0;
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const lineStart = offset;
-            offset += line.length + 1;
-
-            // Skip empty lines, heading, blockquote
-            if (!line.trim()) continue;
-            if (/^#{1,6}\s/.test(line)) continue;
-            if (/^>/.test(line)) continue;
-
-            const eqIndex = line.indexOf('=');
-            if (eqIndex === -1) continue;
-
-            const lhs = line.substring(0, eqIndex).trim();
-            const rhs = line.substring(eqIndex + 1).trim();
-            if (!rhs) continue;
-
-            // Clear markdown from RHS
-            let expr = stripMarkdown(rhs);
-
-            // Normalize Indonesia number format before calculate: 75.000 -> 75000
-            expr = normalizeNumbers(expr);
-
-            const value = evaluate(expr, scope);
-            if (value === null) continue;
-
-            // Save as variable if LHS is identifier
-            const varMatch = lhs.match(/^([A-Za-z_][A-Za-z0-9_]*)/);
-            if (varMatch) {
-                scope[varMatch[1]] = value;
-            }
-
-            updates.push({ lineIndex: i, value });
-        }
-
-        for (let i = updates.length - 1; i >= 0; i--) {
-            const { lineIndex, value } = updates[i];
-            const [ok, iter] = buffer.get_iter_at_line(lineIndex);
-
-            if (!ok) continue;
-            iter.forward_to_line_end();
-
-            const formatted = `   = ${formatNumber(value)}`;
-            const startOffset = iter.get_offset();
-
-            buffer.insert(iter, formatted, -1);
-
-            const start = buffer.create_mark(null,
-                buffer.get_iter_at_offset(startOffset), false);
-            const end = buffer.create_mark(null,
-                buffer.get_iter_at_offset(startOffset + formatted.length), true);
-            this._results.push({ start, end });
-
-            buffer.apply_tag_by_name(
-                'calc_result',
-                buffer.get_iter_at_offset(startOffset),
-                buffer.get_iter_at_offset(startOffset + formatted.length)
-            );
-        }
+        this._tabStopScheduled = true;
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._tabStopScheduled = false;
+            setResultTabStop(this._buffer, this._pendingTabWidth);
+            return GLib.SOURCE_REMOVE;
+        });
     }
 });
-

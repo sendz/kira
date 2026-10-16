@@ -18,26 +18,37 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
- import Gtk from 'gi://Gtk?version=4.0';
- import Pango from 'gi://Pango'
+import Gtk from 'gi://Gtk?version=4.0';
+import Pango from 'gi://Pango';
 
- export function setupMarkdownTags(buffer) {
+export function setupMarkdownTags(buffer) {
     const tagTable = buffer.get_tag_table();
-    setupHeadings(buffer, tagTable);
-    setupBold(buffer, tagTable);
-    setupItalic(buffer, tagTable);
-    setupBlockquote(buffer, tagTable);
-    setupList(buffer, tagTable);
 
-    const resultTag = new Gtk.TextTag({
-      name: 'calc_result',
-      foreground: '#1a7f37',
-      weight: Pango.Weight.BOLD,
-    });
-    tagTable.add(resultTag);
+    setupHeadings(tagTable);
+    setupBold(tagTable);
+    setupItalic(tagTable);
+    setupBlockquote(tagTable);
+    setupList(tagTable);
+
+    tagTable.add(new Gtk.TextTag({
+        name: 'calc_result',
+        foreground: '#1a7f37',
+        weight: Pango.Weight.BOLD,
+    }));
+    tagTable.add(new Gtk.TextTag({ name: 'calc_line' }));
 }
 
-function setupHeadings (buffer, tagTable) {
+export function setResultTabStop(buffer, pixels) {
+    const tag = buffer.get_tag_table().lookup('calc_line');
+    if (!tag)
+        return;
+
+    const tabs = Pango.TabArray.new(1, false);
+    tabs.set_tab(0, Pango.TabAlign.RIGHT, Math.max(1, Math.round(pixels)) * Pango.SCALE);
+    tag.set_property('tabs', tabs);
+}
+
+function setupHeadings(tagTable) {
     const headings = [
         { name: 'h1', scale: 2, above: 14, below: 8 },
         { name: 'h2', scale: 1.8, above: 12, below: 6 },
@@ -47,15 +58,14 @@ function setupHeadings (buffer, tagTable) {
         { name: 'h6', scale: 1, above: 4, below: 2 },
     ];
 
-    for (const h of headings) {
-        const tag = new Gtk.TextTag({
-            name: h.name,
-            scale: h.scale,
+    for (const heading of headings) {
+        tagTable.add(new Gtk.TextTag({
+            name: heading.name,
+            scale: heading.scale,
             weight: Pango.Weight.BOLD,
-            pixels_above_lines: h.above,
-            pixels_below_lines: h.below,
-        });
-        tagTable.add(tag);
+            pixels_above_lines: heading.above,
+            pixels_below_lines: heading.below,
+        }));
     }
 
     const h6 = tagTable.lookup('h6');
@@ -65,144 +75,93 @@ function setupHeadings (buffer, tagTable) {
     }
 }
 
-function setupBold(buffer, tagTable) {
-    const boldTag = new Gtk.TextTag({
-        name: 'bold',
-        weight: Pango.Weight.BOLD,
-    });
-    tagTable.add(boldTag);
+function setupBold(tagTable) {
+    tagTable.add(new Gtk.TextTag({ name: 'bold', weight: Pango.Weight.BOLD }));
 }
 
-function setupItalic(buffer, tagTable) {
-    const italicTag = new Gtk.TextTag({
-        name: 'italic',
-        style: Pango.Style.ITALIC,
-    });
-    tagTable.add(italicTag);
+function setupItalic(tagTable) {
+    tagTable.add(new Gtk.TextTag({ name: 'italic', style: Pango.Style.ITALIC }));
 }
 
-function setupBlockquote(buffer, tagTable) {
-    const blockquoteTag = new Gtk.TextTag({
+function setupBlockquote(tagTable) {
+    tagTable.add(new Gtk.TextTag({
         name: 'blockquote',
         foreground: '#666666',
         style: Pango.Style.ITALIC,
         left_margin: 24,
-    });
-    tagTable.add(blockquoteTag);
+    }));
 }
 
-function setupList(buffer, tagTable) {
-    const listTag = new Gtk.TextTag({
-        name: 'list_item',
-        left_margin: 24,
-    });
-    tagTable.add(listTag);
+function setupList(tagTable) {
+    tagTable.add(new Gtk.TextTag({ name: 'list_item', left_margin: 24 }));
 }
 
 export function applyMarkdown(buffer) {
     const start = buffer.get_start_iter();
     const end = buffer.get_end_iter();
 
-    cleanTags(buffer, start, end);
-
-    scanInputs(buffer, start, end)
+    clearTags(buffer, start, end);
+    scanInputs(buffer, start, end);
 }
 
-function cleanTags(buffer, start, end) {
-    for (let i = 1; i <= 6; i++) {
-        buffer.remove_tag_by_name(`h${i}`, start, end);
-    }
+function clearTags(buffer, start, end) {
+    for (let level = 1; level <= 6; level++)
+        buffer.remove_tag_by_name(`h${level}`, start, end);
 
-    buffer.remove_tag_by_name('bold', start, end);
-    buffer.remove_tag_by_name('italic', start, end);
-    buffer.remove_tag_by_name('blockquote', start, end);
-    buffer.remove_tag_by_name('list_item', start, end);
+    for (const name of ['bold', 'italic', 'blockquote', 'list_item'])
+        buffer.remove_tag_by_name(name, start, end);
 }
 
 function scanInputs(buffer, start, end) {
-    const text = buffer.get_text(start, end, true);
-    const lines = text.split('\n');
-
     let offset = 0;
-    for (const line of lines) {
+
+    for (const line of buffer.get_text(start, end, true).split('\n')) {
         const lineStart = offset;
         const lineEnd = offset + line.length;
-
-        // --- Heading ---
-        const hMatch = line.match(/^(#{1,6})\s+(.*)$/);
-        if (hMatch) {
-            const level = hMatch[1].length;
-            const contentStart = offset + level + 1;
-            if (lineEnd > contentStart) {
-                buffer.apply_tag_by_name(
-                    `h${level}`,
-                    buffer.get_iter_at_offset(contentStart),
-                    buffer.get_iter_at_offset(lineEnd)
-                );
-            }
-            offset += line.length + 1;
-            continue;
-        }
-
-        // --- Blockquote: > text ---
-        const bqMatch = line.match(/^>\s?(.*)$/);
-        if (bqMatch) {
-            buffer.apply_tag_by_name(
-                'blockquote',
-                buffer.get_iter_at_offset(lineStart),
-                buffer.get_iter_at_offset(lineEnd)
-            );
-            offset += line.length + 1;
-            continue;   // skip inline parsing di baris quote
-        }
-
-        // --- List: - item, * item, + item ---
-        const listMatch = line.match(/^(\s*)([-*+])\s+(.*)$/);
-        if (listMatch) {
-            buffer.apply_tag_by_name(
-                'list_item',
-                buffer.get_iter_at_offset(lineStart),
-                buffer.get_iter_at_offset(lineEnd)
-            );
-            // Inline parsing tetap dilakukan pada isi list
-            applyInlineTags(buffer, lineStart + listMatch[0].length - listMatch[3].length,
-                                  listMatch[3]);
-            offset += line.length + 1;
-            continue;
-        }
-
-        // --- Inline tags: bold & italic ---
-        applyInlineTags(buffer, lineStart, line);
         offset += line.length + 1;
+
+        const heading = line.match(/^(#{1,6})\s+(.*)$/);
+        if (heading) {
+            const level = heading[1].length;
+            const contentStart = lineStart + level + 1;
+            if (lineEnd > contentStart)
+                applyTag(buffer, `h${level}`, contentStart, lineEnd);
+            continue;
+        }
+
+        if (/^>/.test(line)) {
+            applyTag(buffer, 'blockquote', lineStart, lineEnd);
+            continue;
+        }
+
+        const listItem = line.match(/^(\s*)([-*+])\s+(.*)$/);
+        if (listItem) {
+            applyTag(buffer, 'list_item', lineStart, lineEnd);
+            applyInlineTags(buffer, lineStart + listItem[0].length - listItem[3].length, listItem[3]);
+            continue;
+        }
+
+        applyInlineTags(buffer, lineStart, line);
     }
 }
 
-function applyInlineTags(buffer, lineStart, lineText) {
-        // Bold: **teks**
-        const boldRegex = /\*\*(.+?)\*\*/g;
-        let match;
-        while ((match = boldRegex.exec(lineText)) !== null) {
-            const contentStart = lineStart + match.index + 2;
-            const contentEnd = contentStart + match[1].length;
-            buffer.apply_tag_by_name(
-                'bold',
-                buffer.get_iter_at_offset(contentStart),
-                buffer.get_iter_at_offset(contentEnd)
-            );
-        }
+function applyTag(buffer, name, startOffset, endOffset) {
+    buffer.apply_tag_by_name(name,
+        buffer.get_iter_at_offset(startOffset),
+        buffer.get_iter_at_offset(endOffset));
+}
 
-        // Italic: _teks_
-        const italicRegex = /(?<![\w_])_([^_\n]+?)_(?![\w_])/g;
-        while ((match = italicRegex.exec(lineText)) !== null) {
-            const contentStart = lineStart + match.index + 1;
-            const contentEnd = contentStart + match[1].length;
-            buffer.apply_tag_by_name(
-                'italic',
-                buffer.get_iter_at_offset(contentStart),
-                buffer.get_iter_at_offset(contentEnd)
-            );
-        }
-    }
+function applyInlineTags(buffer, lineStart, lineText) {
+    for (const match of lineText.matchAll(/\*\*(.+?)\*\*/g))
+        applyTag(buffer, 'bold',
+            lineStart + match.index + 2,
+            lineStart + match.index + 2 + match[1].length);
+
+    for (const match of lineText.matchAll(/(?<![\w_])_([^_\n]+?)_(?![\w_])/g))
+        applyTag(buffer, 'italic',
+            lineStart + match.index + 1,
+            lineStart + match.index + 1 + match[1].length);
+}
 
 export function stripMarkdown(s) {
     return s
