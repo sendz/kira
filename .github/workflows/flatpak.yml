@@ -1,0 +1,30 @@
+name: Flatpak
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  flatpak:
+    name: Build Flatpak
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build bundle
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: com.sendyyeah.ScratchPad.json
+          bundle: com.sendyyeah.ScratchPad.flatpak
+          # The manifest targets org.gnome.Platform "master", which lives on the
+          # GNOME nightly repo rather than Flathub. Pin runtime-version to a
+          # stable release (and drop these two lines) for reproducible CI.
+          repository-name: gnome-nightly
+          repository-url: https://nightly.gnome.org/gnome-nightly.flatpakrepo
+          artifact-name: com.sendyyeah.ScratchPad.flatpak

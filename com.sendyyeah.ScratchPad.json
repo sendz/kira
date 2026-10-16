@@ -33,8 +33,12 @@
             "buildsystem" : "meson",
             "sources" : [
                 {
-                    "type" : "git",
-                    "url" : "file:///home/sendy/Projects"
+                    "type" : "dir",
+                    "path" : "./",
+                    "skip" : [
+                        ".git",
+                        ".flatpak-builder"
+                    ]
                 }
             ],
             "config-opts" : [
