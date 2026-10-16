@@ -22,9 +22,7 @@ jobs:
         with:
           manifest-path: com.sendyyeah.ScratchPad.json
           bundle: com.sendyyeah.ScratchPad.flatpak
-          # The manifest targets org.gnome.Platform "master", which lives on the
-          # GNOME nightly repo rather than Flathub. Pin runtime-version to a
-          # stable release (and drop these two lines) for reproducible CI.
-          repository-name: gnome-nightly
-          repository-url: https://nightly.gnome.org/gnome-nightly.flatpakrepo
+          # TODO: Enable it later after stable
+          # repository-name: flathub
+          # repository-url: https://flathub.org/repo/flathub.flatpakrepo
           artifact-name: com.sendyyeah.ScratchPad.flatpak
