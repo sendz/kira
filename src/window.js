@@ -22,7 +22,7 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 
-import {setupMarkdownTags} from './markdown.js'
+import {setupMarkdownTags, applyMarkdown} from './markdown.js'
 
 export const ScratchPadWindow = GObject.registerClass({
     GTypeName: 'ScratchPadWindow',
@@ -45,7 +45,7 @@ export const ScratchPadWindow = GObject.registerClass({
 
             try {
                 this._clearResults();
-                this._applyMarkdown();
+                applyMarkdown(this._buffer);
                 this._insertResults();
             } finally {
                 this._isUpdating = false;
@@ -133,114 +133,6 @@ export const ScratchPadWindow = GObject.registerClass({
                 'calc_result',
                 buffer.get_iter_at_offset(startOffset),
                 buffer.get_iter_at_offset(startOffset + formatted.length)
-            );
-        }
-    }
-
-    _applyMarkdown() {
-        const buffer = this._buffer;
-        const start = buffer.get_start_iter();
-        const end = buffer.get_end_iter();
-
-        this._cleanTags(buffer, start, end);
-
-        this._scanInputs(buffer, start, end)
-    }
-
-    _cleanTags(buffer, start, end) {
-        for (let i = 1; i <= 6; i++) {
-            buffer.remove_tag_by_name(`h${i}`, start, end);
-        }
-
-        buffer.remove_tag_by_name('bold', start, end);
-        buffer.remove_tag_by_name('italic', start, end);
-        buffer.remove_tag_by_name('blockquote', start, end);
-        buffer.remove_tag_by_name('list_item', start, end);
-    }
-
-    _scanInputs(buffer, start, end) {
-        const text = buffer.get_text(start, end, true);
-    const lines = text.split('\n');
-
-    let offset = 0;
-    for (const line of lines) {
-        const lineStart = offset;
-        const lineEnd = offset + line.length;
-
-        // --- Heading ---
-        const hMatch = line.match(/^(#{1,6})\s+(.*)$/);
-        if (hMatch) {
-            const level = hMatch[1].length;
-            const contentStart = offset + level + 1;
-            if (lineEnd > contentStart) {
-                buffer.apply_tag_by_name(
-                    `h${level}`,
-                    buffer.get_iter_at_offset(contentStart),
-                    buffer.get_iter_at_offset(lineEnd)
-                );
-            }
-            offset += line.length + 1;
-            continue;
-        }
-
-        // --- Blockquote: > teks ---
-        const bqMatch = line.match(/^>\s?(.*)$/);
-        if (bqMatch) {
-            buffer.apply_tag_by_name(
-                'blockquote',
-                buffer.get_iter_at_offset(lineStart),
-                buffer.get_iter_at_offset(lineEnd)
-            );
-            offset += line.length + 1;
-            continue;   // skip inline parsing di baris quote
-        }
-
-        // --- List: - item, * item, + item ---
-        const listMatch = line.match(/^(\s*)([-*+])\s+(.*)$/);
-        if (listMatch) {
-            buffer.apply_tag_by_name(
-                'list_item',
-                buffer.get_iter_at_offset(lineStart),
-                buffer.get_iter_at_offset(lineEnd)
-            );
-            // Inline parsing tetap dilakukan pada isi list
-            this._applyInlineTags(lineStart + listMatch[0].length - listMatch[3].length,
-                                  listMatch[3]);
-            offset += line.length + 1;
-            continue;
-        }
-
-        // --- Baris biasa: bold & italic ---
-        this._applyInlineTags(lineStart, line);
-        offset += line.length + 1;
-    }
-    }
-
-    _applyInlineTags(lineStart, lineText) {
-        const buffer = this._buffer;
-
-        // Bold: **teks**
-        const boldRegex = /\*\*(.+?)\*\*/g;
-        let match;
-        while ((match = boldRegex.exec(lineText)) !== null) {
-            const contentStart = lineStart + match.index + 2;
-            const contentEnd = contentStart + match[1].length;
-            buffer.apply_tag_by_name(
-                'bold',
-                buffer.get_iter_at_offset(contentStart),
-                buffer.get_iter_at_offset(contentEnd)
-            );
-        }
-
-        // Italic: _teks_
-        const italicRegex = /(?<![\w_])_([^_\n]+?)_(?![\w_])/g;
-        while ((match = italicRegex.exec(lineText)) !== null) {
-            const contentStart = lineStart + match.index + 1;
-            const contentEnd = contentStart + match[1].length;
-            buffer.apply_tag_by_name(
-                'italic',
-                buffer.get_iter_at_offset(contentStart),
-                buffer.get_iter_at_offset(contentEnd)
             );
         }
     }
