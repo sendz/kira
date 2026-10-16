@@ -22,7 +22,9 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 
-import {setupMarkdownTags, applyMarkdown} from './markdown.js'
+import { setupMarkdownTags, applyMarkdown, stripMarkdown } from './helpers/markdown.js';
+import { clearResults } from './helpers/calculator.js';
+import { normalizeNumbers } from './helpers/format.js';
 
 export const ScratchPadWindow = GObject.registerClass({
     GTypeName: 'ScratchPadWindow',
@@ -44,27 +46,13 @@ export const ScratchPadWindow = GObject.registerClass({
             this._isUpdating = true;
 
             try {
-                this._clearResults();
+                clearResults(this._buffer, this._resultMarks);
                 applyMarkdown(this._buffer);
                 this._insertResults();
             } finally {
                 this._isUpdating = false;
             }
         })
-    }
-
-    _clearResults() {
-        const buffer = this._buffer;
-
-        for (const mark of this._resultMarks) {
-            const iter = buffer.get_iter_at_mark(mark);
-            const endIter = iter.copy();
-            endIter.forward_to_line_end();
-
-            buffer.delete(iter, endIter);
-            buffer.delete_mark(mark);
-        }
-        this._resultMarks = [];
     }
 
     _insertResults() {
@@ -96,10 +84,10 @@ export const ScratchPadWindow = GObject.registerClass({
             if (!rhs) continue;
 
             // Bersihkan markdown dari RHS
-            let expr = this._stripMarkdown(rhs);
+            let expr = stripMarkdown(rhs);
 
             // Normalisasi angka Indonesia: 75.000 -> 75000
-            expr = this._normalizeNumbers(expr);
+            expr = normalizeNumbers(expr);
 
             // Evaluasi
             const value = this._evaluate(expr, scope);

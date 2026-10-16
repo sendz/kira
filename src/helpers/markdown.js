@@ -203,3 +203,12 @@ function applyInlineTags(buffer, lineStart, lineText) {
             );
         }
     }
+
+export function stripMarkdown(s) {
+    return s
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/__(.+?)__/g, '$1')
+        .replace(/(?<![\w_])_([^_\n]+?)_(?![\w_])/g, '$1')
+        .replace(/~~(.+?)~~/g, '$1')
+        .replace(/`([^`]+?)`/g, '$1');
+}
