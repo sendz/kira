@@ -42,11 +42,18 @@ export const ScratchPadWindow = GObject.registerClass({
         this._tabStopScheduled = false;
         this._pendingTabWidth = 0;
         this._currentFile = null;
+        this._isModified = false;
+        this._afterSave = null;
 
         setupMarkdownTags(this._buffer);
         this._followViewWidth();
-        this._buffer.connect('changed', () => this._scheduleRefresh());
-        this._updateTitle();
+        this._buffer.connect('changed', () => {
+            if (this._isUpdating)
+                return;
+
+            this._isModified = true;
+            this._scheduleRefresh();
+        });
     }
 
     _updateTitle() {
@@ -84,6 +91,8 @@ export const ScratchPadWindow = GObject.registerClass({
         const caret = buffer.create_mark(null, buffer.get_iter_at_mark(buffer.get_insert()), true);
 
         this._isUpdating = true;
+
+        this._updateTitle();
         try {
             clearResults(buffer, this._results);
             applyMarkdown(buffer);
@@ -111,20 +120,68 @@ export const ScratchPadWindow = GObject.registerClass({
         });
     }
 
+    vfunc_close_request() {
+        if (!this._isModified)
+            return false;
+
+        this._guardUnsaved(() => this.destroy());
+        return true;
+    }
+
+    _guardUnsaved(onProceed) {
+        if (!this._isModified) {
+            onProceed();
+            return;
+        }
+
+        const dialog = new Adw.MessageDialog({
+            transient_for: this,
+            modal: true,
+            heading: 'Save changes?',
+            body: this._currentFile
+                ? `Save changes to “${this._currentFile.get_basename()}” before continuing?`
+                : 'Save your changes before continuing?',
+        });
+        dialog.add_response('cancel', 'Cancel');
+        dialog.add_response('discard', 'Discard');
+        dialog.add_response('save', 'Save');
+        dialog.set_response_appearance('discard', Adw.ResponseAppearance.DESTRUCTIVE);
+        dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
+        dialog.set_default_response('save');
+        dialog.set_close_response('cancel');
+
+        dialog.connect('response', (_dialog, response) => {
+            if (response === 'discard') {
+                this._isModified = false;
+                onProceed();
+            } else if (response === 'save') {
+                this._afterSave = onProceed;
+                this.saveFile();
+            }
+        });
+        dialog.present();
+    }
+
     // New File
     newFile() {
-        this._currentFile = null;
-        this._isModified = false;
-        this._buffer.set_text('', -1);
-        this._updateTitle();
+        this._guardUnsaved(() => {
+            this._currentFile = null;
+            this._buffer.set_text('', -1);
+            this._isModified = false;
+            this._updateTitle();
+        });
     }
 
     // Open File
     openFile() {
+        this._guardUnsaved(() => this._openFileDialog());
+    }
+
+    _openFileDialog() {
         const dialog = new Gtk.FileDialog();
         dialog.set_title('Open File');
 
-        // Filter: hanya tampilkan file .txt, .md, .numi
+        // Filter: Only show .txt, .md, .numi file
         const filter = new Gtk.FileFilter();
         filter.set_name('Text files');
         filter.add_pattern('*.txt');
@@ -187,6 +244,7 @@ export const ScratchPadWindow = GObject.registerClass({
                 const file = source.save_finish(result);
                 this._writeFile(file);
             } catch (e) {
+                this._afterSave = null;
                 if (!e.matches?.(Gtk.DialogError, Gtk.DialogError.DISMISSED))
                     console.error('Save As failed:', e);
             }
@@ -212,6 +270,11 @@ export const ScratchPadWindow = GObject.registerClass({
                     this._currentFile = file;
                     this._isModified = false;
                     this._updateTitle();
+
+                    const afterSave = this._afterSave;
+                    this._afterSave = null;
+                    if (afterSave)
+                        afterSave();
                 } catch (e) {
                     console.error('Write failed:', e);
                 }

@@ -39,7 +39,11 @@ export const ScratchPadApplication = GObject.registerClass(
 
             const quit_action = new Gio.SimpleAction({name: 'quit'});
                 quit_action.connect('activate', action => {
-                this.quit();
+                const window = this.active_window;
+                if (window)
+                    window.close();
+                else
+                    this.quit();
             });
             this.add_action(quit_action);
             this.set_accels_for_action('app.quit', ['<control>q']);
