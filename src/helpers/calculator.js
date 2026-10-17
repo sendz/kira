@@ -20,6 +20,7 @@
 
 import { stripMarkdown } from './markdown.js';
 import { normalizeNumbers, formatNumber } from './format.js';
+import { convertUnit, isUnit } from './unit.js'
 
 const TOTAL_LINE_REGEX = /^total\b\s*(?:=\s*(.*))?$/i;
 
@@ -78,7 +79,7 @@ function totalValue(expression, scope, sectionTotal) {
     if (!trimmed)
         return sectionTotal;
 
-    return evaluate(normalizeNumbers(stripMarkdown(trimmed)), scope);
+    return computeExpression(trimmed, scope);
 }
 
 function evaluateLine(line, scope) {
@@ -93,7 +94,7 @@ function evaluateLine(line, scope) {
     if (!expression)
         return null;
 
-    const value = evaluate(normalizeNumbers(stripMarkdown(expression)), scope);
+    const value = computeExpression(expression, scope);
     if (value === null)
         return null;
 
@@ -102,6 +103,12 @@ function evaluateLine(line, scope) {
         scope[name[1]] = value;
 
     return value;
+}
+
+function computeExpression(expression, scope) {
+    const cleaned = normalizeNumbers(stripMarkdown(expression));
+    const converted = tryConvert(cleaned, scope);
+    return converted !== null ? converted : evaluate(cleaned, scope);
 }
 
 function insertResult(buffer, results, { lineIndex, value }) {
@@ -141,4 +148,28 @@ export function evaluate(expr, scope) {
     } catch (e) {
         return null;
     }
+}
+
+function tryConvert(expr, scope) {
+    const match = expr.match(
+        /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s*([a-zA-Z]+)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i
+    );
+    if (!match) return null;
+
+    const value = resolveValue(match[1], scope);
+    if (value === null) return null;
+
+    const from = match[2];
+    const to = match[3];
+
+    if (!isUnit(from) || !isUnit(to)) return null;
+
+    return convertUnit(value, from, to);
+}
+
+function resolveValue(token, scope) {
+    if (/^-?\d/.test(token))
+        return parseFloat(token);
+
+    return Object.prototype.hasOwnProperty.call(scope, token) ? scope[token] : null;
 }
