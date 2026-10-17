@@ -72,24 +72,24 @@ registerCategory('time', TIME);
 
 export function isUnit(word) {
     if (!word) return false;
-    const w = word.toLowerCase();
+    const char = word.toLowerCase();
 
-    if (UNIT_MAP[w]) return true;
-    if (TEMPERATURE.includes(w)) return true;
+    if (UNIT_MAP[char]) return true;
+    if (TEMPERATURE.includes(char)) return true;
 
     return false;
 }
 
 export function convertUnit(value, from, to) {
-    const f = from.toLowerCase();
-    const t = to.toLowerCase();
+    const _from = from.toLowerCase();
+    const _to = to.toLowerCase();
 
-    if (TEMPERATURE.includes(f) || TEMPERATURE.includes(t)) {
-        return convertTemperature(value, f, t);
+    if (TEMPERATURE.includes(_from) || TEMPERATURE.includes(_to)) {
+        return convertTemperature(value, _from, _to);
     };
 
-    const source = UNIT_MAP[f];
-    const target = UNIT_MAP[t];
+    const source = UNIT_MAP[_from];
+    const target = UNIT_MAP[_to];
 
     if (!source || !target) return null;
 
@@ -108,22 +108,22 @@ function convertTemperature(value, from, to) {
         return unit;
     }
 
-    const f = normalize(from);
-    const t = normalize(to);
+    const _from = normalize(from);
+    const _to = normalize(to);
 
-    if (!f || !t) return null;
+    if (!_from || !_to) return null;
 
     // Convert to Celsius first
     let celsius;
-    if (f === 'c') celsius = value;
-    else if (f === 'f') celsius = (value - 32) * 5 / 9;
-    else if (f === 'k') celsius = value - 273.15;
+    if (_from === 'c') celsius = value;
+    else if (_from === 'f') celsius = (value - 32) * 5 / 9;
+    else if (_from === 'k') celsius = value - 273.15;
     else return null;
 
     // From Celsius to target
-    if (t === 'c') return celsius;
-    if (t === 'f') return celsius * 9 / 5 + 32;
-    if (t === 'k') return celsius + 273.15;
+    if (_to === 'c') return celsius;
+    if (_to === 'f') return celsius * 9 / 5 + 32;
+    if (_to === 'k') return celsius + 273.15;
     return null;
 }
 
