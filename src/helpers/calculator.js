@@ -21,6 +21,7 @@
 import { stripMarkdown } from './markdown.js';
 import { normalizeNumbers, formatNumber } from './format.js';
 import { convertUnit, isUnit } from './unit.js';
+import { isCurrency, formatWithSymbol } from './currencies.js';
 
 const TOTAL_LINE_REGEX = /^total\b\s*(?:=\s*(.*))?$/i;
 const CONVERT_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s*([a-zA-Z]+)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
@@ -51,45 +52,45 @@ export function insertResults(buffer, results) {
 }
 
 function collectResults(text) {
-    const values = {};
-    const units = {};
+    const scope = { values: {}, units: {}, currencies: {} };
     const results = [];
     let sectionTotal = 0;
+    let sectionCurrency = undefined;
 
     for (const [lineIndex, line] of text.split('\n').entries()) {
         const total = line.match(TOTAL_LINE_REGEX);
         if (total) {
-            const value = totalValue(total[1], values, units, sectionTotal);
-            if (value !== null) {
-                values.total = value;
-                delete units.total;
-                results.push({ lineIndex, value });
+            const outcome = totalValue(total[1], scope, sectionTotal, sectionCurrency);
+            if (outcome !== null) {
+                setMeasurement(scope, 'total', outcome);
+                results.push({ lineIndex, value: outcome.value, currency: outcome.currency });
             }
             sectionTotal = 0;
+            sectionCurrency = undefined;
             continue;
         }
 
-        const outcome = evaluateLine(line, values, units);
+        const outcome = evaluateLine(line, scope);
         if (outcome === null)
             continue;
 
         sectionTotal += outcome.value;
-        results.push({ lineIndex, value: outcome.value });
+        sectionCurrency = mergeCurrency(sectionCurrency, outcome.currency);
+        results.push({ lineIndex, value: outcome.value, currency: outcome.currency });
     }
 
     return results;
 }
 
-function totalValue(expression, values, units, sectionTotal) {
+function totalValue(expression, scope, sectionTotal, sectionCurrency) {
     const trimmed = (expression ?? '').trim();
     if (!trimmed)
-        return sectionTotal;
+        return { value: sectionTotal, unit: null, currency: sectionCurrency ?? null };
 
-    const outcome = computeExpression(trimmed, values, units);
-    return outcome === null ? null : outcome.value;
+    return computeExpression(trimmed, scope);
 }
 
-function evaluateLine(line, values, units) {
+function evaluateLine(line, scope) {
     if (!line.trim() || /^#{1,6}\s/.test(line) || /^>/.test(line))
         return null;
 
@@ -101,87 +102,112 @@ function evaluateLine(line, values, units) {
     if (!expression)
         return null;
 
-    const outcome = computeExpression(expression, values, units);
+    const outcome = computeExpression(expression, scope);
     if (outcome === null)
         return null;
 
     const name = line.substring(0, separator).trim().match(/^([A-Za-z_][A-Za-z0-9_]*)/);
-    if (name) {
-        values[name[1]] = outcome.value;
-        if (outcome.unit)
-            units[name[1]] = outcome.unit;
-        else
-            delete units[name[1]];
-    }
+    if (name)
+        setMeasurement(scope, name[1], outcome);
 
     return outcome;
 }
 
-function computeExpression(expression, values, units) {
+function computeExpression(expression, scope) {
     const cleaned = normalizeNumbers(stripMarkdown(expression));
 
-    const converted = tryConvert(cleaned, values, units);
+    const converted = tryConvert(cleaned, scope);
     if (converted)
         return converted;
 
-    const number = evaluate(cleaned, values);
-    return number === null ? null : { value: number, unit: null };
+    const number = evaluate(cleaned, scope.values);
+    return number === null ? null : { value: number, ...inferMeasurement(cleaned, scope) };
 }
 
 // Recognises, in order: "<value> <from> to <to>", "<variable> to <to>" using a
-// variable's remembered unit, a bare quantity "<value> <unit>", and finally an
-// arbitrary "<expression> to <to>" where every unit-carrying variable shares
-// one unit.
-function tryConvert(expression, values, units) {
+// variable's remembered unit, a bare "<value> <unit|currency>", and finally an
+// arbitrary "<expression> to <unit>" whose variables share one unit.
+function tryConvert(expression, scope) {
     const full = expression.match(CONVERT_REGEX);
     if (full) {
-        const value = resolveValue(full[1], values);
+        const value = resolveValue(full[1], scope.values);
         if (value !== null && isUnit(full[2]) && isUnit(full[3])) {
             const converted = convertUnit(value, full[2], full[3]);
             if (converted !== null)
-                return { value: converted, unit: full[3].toLowerCase() };
+                return { value: converted, unit: full[3].toLowerCase(), currency: null };
         }
     }
 
     const variable = expression.match(CONVERT_VARIABLE_REGEX);
-    if (variable && units[variable[1]] && isUnit(variable[2])) {
-        const converted = convertUnit(values[variable[1]], units[variable[1]], variable[2]);
+    if (variable && scope.units[variable[1]] && isUnit(variable[2])) {
+        const converted = convertUnit(scope.values[variable[1]], scope.units[variable[1]], variable[2]);
         if (converted !== null)
-            return { value: converted, unit: variable[2].toLowerCase() };
+            return { value: converted, unit: variable[2].toLowerCase(), currency: null };
     }
 
     const quantity = expression.match(QUANTITY_REGEX);
     if (quantity) {
-        const value = resolveValue(quantity[1], values);
-        if (value !== null && isUnit(quantity[2]))
-            return { value, unit: quantity[2].toLowerCase() };
+        const value = resolveValue(quantity[1], scope.values);
+        const word = quantity[2];
+        if (value !== null && isUnit(word))
+            return { value, unit: word.toLowerCase(), currency: null };
+        if (value !== null && isCurrency(word))
+            return { value, unit: null, currency: word.toUpperCase() };
     }
 
     const derived = expression.match(CONVERT_EXPRESSION_REGEX);
     if (derived && isUnit(derived[2])) {
-        const source = inferUnit(derived[1], values, units);
-        const number = source === null ? null : evaluate(derived[1], values);
+        const { unit } = inferMeasurement(derived[1], scope);
+        const number = unit === null ? null : evaluate(derived[1], scope.values);
         if (number !== null) {
-            const converted = convertUnit(number, source, derived[2]);
+            const converted = convertUnit(number, unit, derived[2]);
             if (converted !== null)
-                return { value: converted, unit: derived[2].toLowerCase() };
+                return { value: converted, unit: derived[2].toLowerCase(), currency: null };
         }
     }
 
     return null;
 }
 
-// The shared unit of every variable referenced by an expression, or null when
-// there are none or they disagree.
-function inferUnit(expression, values, units) {
-    const names = expression.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
-    const known = names.filter(name => Object.prototype.hasOwnProperty.call(values, name));
+// The unit or currency shared by every variable in an expression.
+function inferMeasurement(expression, scope) {
+    const names = (expression.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [])
+        .filter(name => Object.prototype.hasOwnProperty.call(scope.values, name));
 
-    const unit = units[known[0]];
-    if (!unit || known.some(name => units[name] !== unit))
-        return null;
+    if (names.length === 0)
+        return { unit: null, currency: null };
 
-    return unit;
+    const first = names[0];
+    const currency = scope.currencies[first];
+    if (currency && names.every(name => scope.currencies[name] === currency))
+        return { unit: null, currency };
+
+    const unit = scope.units[first];
+    if (unit && names.every(name => scope.units[name] === unit))
+        return { unit, currency: null };
+
+    return { unit: null, currency: null };
+}
+
+function mergeCurrency(current, currency) {
+    if (current === undefined)
+        return currency ?? null;
+
+    return current === currency ? current : null;
+}
+
+function setMeasurement(scope, name, { value, unit, currency }) {
+    scope.values[name] = value;
+
+    if (unit)
+        scope.units[name] = unit;
+    else
+        delete scope.units[name];
+
+    if (currency)
+        scope.currencies[name] = currency;
+    else
+        delete scope.currencies[name];
 }
 
 function resolveValue(token, values) {
@@ -191,7 +217,7 @@ function resolveValue(token, values) {
     return Object.prototype.hasOwnProperty.call(values, token) ? values[token] : null;
 }
 
-function insertResult(buffer, results, { lineIndex, value }) {
+function insertResult(buffer, results, { lineIndex, value, currency }) {
     const [ok, iter] = buffer.get_iter_at_line(lineIndex);
     if (!ok)
         return;
@@ -200,7 +226,8 @@ function insertResult(buffer, results, { lineIndex, value }) {
     iter.forward_to_line_end();
     const lineEnd = iter.get_offset();
 
-    const result = `\t= ${formatNumber(value)}`;
+    const display = currency ? formatWithSymbol(value, currency) : formatNumber(value);
+    const result = `\t= ${display}`;
     buffer.insert(iter, result, -1);
 
     const resultStart = buffer.get_iter_at_offset(lineEnd);
