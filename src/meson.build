@@ -1,6 +1,8 @@
 pkgdatadir = get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
+install_data('../CONTRIBUTORS.md', install_dir: pkgdatadir)
+
 src_res = gnome.compile_resources('com.sendyyeah.Kira.src',
   'com.sendyyeah.Kira.src.gresource.xml',
   gresource_bundle: true,

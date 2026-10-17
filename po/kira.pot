@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kira\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 09:42+0700\n"
+"POT-Creation-Date: 2026-10-17 09:52+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,8 +58,12 @@ msgid "A caption"
 msgstr ""
 
 #. Translators: Replace "translator-credits" with your name/username, and optionally an email or URL.
-#: src/main.js:63
+#: src/main.js:61
 msgid "translator-credits"
+msgstr ""
+
+#: src/main.js:67
+msgid "contributors"
 msgstr ""
 
 #: src/preferences.js:29

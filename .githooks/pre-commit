@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+root=$(git rev-parse --show-toplevel)
+file="$root/CONTRIBUTORS.md"
+[ -f "$file" ] || exit 0
+
+ident=$(git var GIT_AUTHOR_IDENT)
+name=${ident%% <*}
+email=${ident#*<}
+email=${email%%>*}
+
+if grep -Fq "<$email>" "$file"; then
+    exit 0
+fi
+
+tmp=$(mktemp)
+{
+    printf '# Contributors\n\n'
+    {
+        sed -n 's/^- //p' "$file"
+        printf '%s\n' "$name <$email>"
+    } | LC_ALL=C sort -f | sed 's/^/- /'
+} > "$tmp"
+mv "$tmp" "$file"
+
+git add -- "$file"

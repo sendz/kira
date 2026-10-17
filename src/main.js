@@ -20,6 +20,7 @@
 
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk?version=4.0';
 import Adw from 'gi://Adw?version=1';
 
@@ -56,14 +57,14 @@ export const KiraApplication = GObject.registerClass(
                     application_icon: 'com.sendyyeah.Kira',
                     developer_name: 'Sendy Aditya Suryana',
                     version: '0.1.0',
-                    developers: [
-                        'Sendy Aditya Suryana'
-                    ],
                     // Translators: Replace "translator-credits" with your name/username, and optionally an email or URL.
                     translator_credits: _("translator-credits"),
                     copyright: '© 2026 Sendy Aditya Suryana'
                 };
                 const aboutDialog = new Adw.AboutDialog(aboutParams);
+                const people = contributors();
+                if (people.length)
+                    aboutDialog.add_credit_section(_('contributors'), people);
                 aboutDialog.present(this.active_window);
             });
 
@@ -115,6 +116,21 @@ export const KiraApplication = GObject.registerClass(
         }
     }
 );
+
+function contributors() {
+    try {
+        const path = GLib.build_filenamev([pkg.pkgdatadir, 'CONTRIBUTORS.md']);
+        const [, contents] = GLib.file_get_contents(path);
+
+        return new TextDecoder()
+            .decode(contents)
+            .split('\n')
+            .filter(line => line.startsWith('- '))
+            .map(line => line.slice(2).trim());
+    } catch (e) {
+        return [];
+    }
+}
 
 export function main(argv) {
     const application = new KiraApplication();
