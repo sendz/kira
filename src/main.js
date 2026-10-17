@@ -61,7 +61,36 @@ export const ScratchPadApplication = GObject.registerClass(
                 const aboutDialog = new Adw.AboutDialog(aboutParams);
                 aboutDialog.present(this.active_window);
             });
+
             this.add_action(show_about_action);
+
+            const new_file_action = new Gio.SimpleAction({ name: 'new' });
+            new_file_action.connect('activate', () => {
+                this.active_window?.newFile();
+            })
+            this.add_action(new_file_action);
+            this.set_accels_for_action('app.new', ['<control>n']);
+
+            const open_action = new Gio.SimpleAction({ name: 'open' });
+            open_action.connect('activate', () => {
+                this.active_window?.openFile();
+            });
+            this.add_action(open_action);
+            this.set_accels_for_action('app.open', ['<control>o']);
+
+            const save_action = new Gio.SimpleAction({ name: 'save' });
+            save_action.connect('activate', () => {
+                this.active_window?.saveFile();
+            });
+            this.add_action(save_action);
+            this.set_accels_for_action('app.save', ['<control>s']);
+
+            const save_as_action = new Gio.SimpleAction({ name: 'save-as' });
+            save_as_action.connect('activate', () => {
+                this.active_window?.saveFileAs();
+            });
+            this.add_action(save_as_action);
+            this.set_accels_for_action('app.save-as', ['<control><shift>s']);
         }
 
         vfunc_activate() {
