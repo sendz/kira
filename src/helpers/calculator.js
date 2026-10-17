@@ -24,7 +24,7 @@ import { convertUnit, isUnit } from './unit.js';
 import { isCurrency, formatWithSymbol } from './currencies.js';
 import { isAggregateKeyword, computeAggregate } from './aggregator.js';
 
-const AGGREGATE_LINE_REGEX = /^([A-Za-z]+)\b\s*(?:=\s*(.*))?$/i;
+const AGGREGATE_LINE_REGEX = /^([A-Za-z]+)\b\s*(?::\s*(.*))?$/i;
 const CONVERT_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s*([a-zA-Z]+)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
 const CONVERT_VARIABLE_REGEX = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
 const QUANTITY_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s+([a-zA-Z]+)\s*$/i;
@@ -110,7 +110,7 @@ function evaluateLine(line, scope) {
     if (!line.trim() || /^#{1,6}\s/.test(line) || /^>/.test(line))
         return null;
 
-    const separator = line.indexOf('=');
+    const separator = line.indexOf(':');
     if (separator === -1)
         return null;
 
