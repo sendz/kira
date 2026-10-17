@@ -20,15 +20,15 @@
 
 import Gio from 'gi://Gio';
 
-const settings = new Gio.Settings({ schema_id: 'com.sendyyeah.ScratchPad' });
-
+let settings = null;
 let override = '';
 
 export function locale() {
-    const configured = settings.get_string('number-format-locale');
+    if (override)
+        return override;
 
-    return override
-        || (isValidLocale(configured) ? configured : '')
+    const configured = config().get_string('number-format-locale');
+    return (isValidLocale(configured) ? configured : '')
         || Intl.DateTimeFormat().resolvedOptions().locale;
 }
 
@@ -44,15 +44,15 @@ export function setLocaleOverride(tag) {
 }
 
 export function configuredLocale() {
-    return settings.get_string('number-format-locale');
+    return config().get_string('number-format-locale');
 }
 
 export function setConfiguredLocale(tag) {
-    settings.set_string('number-format-locale', tag);
+    config().set_string('number-format-locale', tag);
 }
 
 export function onLocaleChange(callback) {
-    settings.connect('changed::number-format-locale', callback);
+    config().connect('changed::number-format-locale', callback);
 }
 
 export function isValidLocale(tag) {
@@ -65,4 +65,11 @@ export function isValidLocale(tag) {
     } catch (e) {
         return false;
     }
+}
+
+function config() {
+    if (!settings)
+        settings = new Gio.Settings({ schema_id: 'com.sendyyeah.ScratchPad' });
+
+    return settings;
 }

@@ -22,6 +22,7 @@ jobs:
         with:
           manifest-path: com.sendyyeah.ScratchPad.json
           bundle: com.sendyyeah.ScratchPad.flatpak
+          run-tests: true
           # TODO: Enable it later after stable
           # repository-name: flathub
           # repository-url: https://flathub.org/repo/flathub.flatpakrepo

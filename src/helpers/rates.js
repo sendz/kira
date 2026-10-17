@@ -27,14 +27,12 @@ const CACHE_DIR = GLib.build_filenamev([GLib.get_user_cache_dir(), 'com.sendyyea
 const CACHE_FILE = GLib.build_filenamev([CACHE_DIR, 'rates.json']);
 const MAX_AGE = 24 * 60 * 60 * 1000;
 
-const settings = new Gio.Settings({ schema_id: 'com.sendyyeah.ScratchPad' });
-
+let settings = null;
 let table = null;
 let fetching = false;
 let listeners = [];
 
-export function convertCurrency(value, from, to) {
-    const rates = load().rates;
+export function convertWith(rates, value, from, to) {
     const source = rates[from.toUpperCase()];
     const target = rates[to.toUpperCase()];
 
@@ -42,6 +40,23 @@ export function convertCurrency(value, from, to) {
         return null;
 
     return value * target / source;
+}
+
+export function convertCurrency(value, from, to) {
+    return convertWith(load().rates, value, from, to);
+}
+
+export function normalizeRates(payload) {
+    return {
+        base: 'USD',
+        date: payload.date ?? null,
+        fetchedAt: Date.now(),
+        rates: { USD: 1, ...payload.rates },
+    };
+}
+
+export function setRates(rates, date = null) {
+    table = { base: 'USD', date, fetchedAt: Date.now(), rates: { USD: 1, ...rates } };
 }
 
 export function rateDate() {
@@ -59,7 +74,7 @@ export async function refresh(force = false) {
 
     fetching = true;
     try {
-        table = normalize(await fetchRates());
+        table = normalizeRates(await fetchRates());
         writeCache();
         for (const listener of listeners)
             listener();
@@ -71,11 +86,11 @@ export async function refresh(force = false) {
 }
 
 export function ratesEnabled() {
-    return settings.get_boolean('currency-rates-enabled');
+    return enabled();
 }
 
 export function setRatesEnabled(value) {
-    settings.set_boolean('currency-rates-enabled', value);
+    config().set_boolean('currency-rates-enabled', value);
 }
 
 export function onRatesChange(callback) {
@@ -87,7 +102,7 @@ export function onRatesChange(callback) {
 }
 
 function enabled() {
-    return settings.get_boolean('currency-rates-enabled');
+    return config().get_boolean('currency-rates-enabled');
 }
 
 function load() {
@@ -138,11 +153,9 @@ function fetchRates() {
     });
 }
 
-function normalize(payload) {
-    return {
-        base: 'USD',
-        date: payload.date ?? null,
-        fetchedAt: Date.now(),
-        rates: { USD: 1, ...payload.rates },
-    };
+function config() {
+    if (!settings)
+        settings = new Gio.Settings({ schema_id: 'com.sendyyeah.ScratchPad' });
+
+    return settings;
 }
