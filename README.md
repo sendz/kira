@@ -1,6 +1,6 @@
 # Kira
 
-![Kira Screensots](/screenshots/kira-screenshots-1.png)
+![Kira screenshot](screenshots/kira-screenshots-1.png)
 
 Kira is a plain-text notebook. You write in it like a notepad, but any line 
 that contains a calculation gets evaluated, and the result appears at the end 
@@ -528,3 +528,115 @@ meson test -C _build
 ```
 
 The project is licensed under GPL-3.0-or-later. See `COPYING`.
+
+## Contributing
+
+Thank you for helping make Kira better! Bug reports, documentation, translations,
+and code are all welcome.
+
+### Before you start
+
+- For a small fix (typo, documentation, translation), just open a pull request.
+- For a new feature or a change in behaviour, open an issue first so we can
+  agree on the approach before you spend time on it.
+- Keep one pull request focused on one topic.
+
+### Making a change
+
+1. Fork the repository and create a branch:
+
+   ```sh
+   git checkout -b fix/short-description
+   ```
+
+2. Make the change and follow the code guidelines below.
+3. Add or update a test in `tests/` when you change behaviour.
+4. Run the tests and check that the Flatpak still builds:
+
+   ```sh
+   meson test -C _build
+   # or, without Meson:
+   gjs -m tests/run.js
+   ```
+
+   Build commands are in [Build and run](#build-and-run).
+
+### Code guidelines
+
+- Follow the existing style: 4 spaces, small functions with clear names, and
+  comments only where the code cannot explain itself.
+- Keep helpers in `src/helpers/` focused: one file for one job.
+- Do not commit build output (`_build`, `.flatpak-builder`, `_flatpak`,
+  `_repo`) or editor backup files.
+
+### User-facing text and translations
+
+All text shown to users is translatable.
+
+- In JavaScript, use `_()` with short message IDs, for example
+  `_('save_changes_title')`.
+- In `.ui` files, keep `translatable="yes"`.
+- After adding or changing a string, update the template and the PO files:
+
+  ```sh
+  ninja -C _build kira-pot
+  ninja -C _build kira-update-po
+  ```
+
+- Fill in the new entry in every PO file. At minimum, keep `po/en.po` and
+  `po/id.po` complete.
+
+### Updating the changelog
+
+Every change that users can notice should be recorded in `CHANGELOG.md`, in the
+same pull request. The file uses a simple
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) style.
+
+1. Add your entry under `## Unreleased`. Never add to an already released
+   version.
+2. Put it under the matching heading, in this order, and skip the ones you do
+   not need:
+   - `### Added` for new features.
+   - `### Changed` for changes in existing behaviour.
+   - `### Fixed` for bug fixes.
+   - `### Removed` for removed features.
+3. Write for users, not for developers. One short line per change is enough.
+4. Do not bump the version or add a release date. The maintainer does that when
+   a release is tagged.
+
+Example:
+
+```md
+## Unreleased
+
+### Added
+- Convert ounces (`oz`) and cups (`cup`).
+
+### Fixed
+- Currency conversion no longer shows a result when there are no cached rates.
+```
+
+When a release is tagged, `## Unreleased` becomes the new version section and a
+fresh empty `## Unreleased` is added above it.
+
+### Contributor list
+
+`CONTRIBUTORS.md` is updated automatically from the commit author by a
+pre-commit hook. Enable the hook once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+### Commit messages
+
+- Write a short, imperative summary, for example
+  `Fix currency conversion for empty rates`.
+- Use the body to explain *why* when it is not obvious.
+- Reference issues when relevant (`Fixes #12`).
+
+### License
+
+By contributing, you agree that your changes are released under the
+GPL-3.0-or-later license, the same license as Kira.
+
