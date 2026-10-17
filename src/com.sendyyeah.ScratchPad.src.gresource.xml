@@ -6,5 +6,6 @@
     <file>helpers/markdown.js</file>
     <file>helpers/calculator.js</file>
     <file>helpers/format.js</file>
+    <file>helpers/unit.js</file>
   </gresource>
 </gresources>
