@@ -635,6 +635,28 @@ git config core.hooksPath .githooks
 - Use the body to explain *why* when it is not obvious.
 - Reference issues when relevant (`Fixes #12`).
 
+### AI Policy
+
+This project permits the use of Gen-AI technology in the code writing process, 
+from auto-complete through to fully generative agents, subject to certain 
+conditions that safeguard the quality, security, and transparency of contributions.
+
+Contributors are asked to disclose which parts of the code were generated or 
+assisted by Gen-AI, whether in the pull request, in review comments, or in the 
+change documentation.
+
+Even where code is AI-assisted, contributors remain fully responsible for that 
+code and must be able to explain its logic, intent, and technical consequences 
+when asked by a reviewer.
+
+#### Commit Message Tagging
+
+Include `gen` marker in the commit message, for example:
+
+```
+fix(gen): Fix Calculation in unit conversion
+```
+
 ### License
 
 By contributing, you agree that your changes are released under the
