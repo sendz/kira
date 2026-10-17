@@ -3,12 +3,15 @@
   <gresource prefix="/com/sendyyeah/ScratchPad/js">
     <file>main.js</file>
     <file>window.js</file>
-    <file>helpers/markdown.js</file>
-    <file>helpers/calculator.js</file>
-    <file>helpers/format.js</file>
-    <file>helpers/unit.js</file>
-    <file>helpers/currencies.js</file>
+    <file>preferences.js</file>
     <file>helpers/aggregator.js</file>
+    <file>helpers/calculator.js</file>
+    <file>helpers/currencies.js</file>
     <file>helpers/datetime.js</file>
+    <file>helpers/format.js</file>
+    <file>helpers/locale.js</file>
+    <file>helpers/markdown.js</file>
+    <file>helpers/metadata.js</file>
+    <file>helpers/unit.js</file>
   </gresource>
 </gresources>

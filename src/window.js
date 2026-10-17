@@ -26,6 +26,8 @@ import Gio from 'gi://Gio';
 
 import { setupMarkdownTags, applyMarkdown, setResultTabStop } from './helpers/markdown.js';
 import { clearResults, insertResults } from './helpers/calculator.js';
+import { setLocaleOverride, configuredLocale, isValidLocale, onLocaleChange } from './helpers/locale.js';
+import { readLocale, writeLocale } from './helpers/metadata.js';
 
 export const ScratchPadWindow = GObject.registerClass({
     GTypeName: 'ScratchPadWindow',
@@ -47,6 +49,7 @@ export const ScratchPadWindow = GObject.registerClass({
 
         setupMarkdownTags(this._buffer);
         this._followViewWidth();
+        onLocaleChange(() => this._scheduleRefresh());
         this._buffer.connect('changed', () => {
             if (this._isUpdating)
                 return;
@@ -90,6 +93,7 @@ export const ScratchPadWindow = GObject.registerClass({
         const buffer = this._buffer;
         const caret = buffer.create_mark(null, buffer.get_iter_at_mark(buffer.get_insert()), true);
 
+        setLocaleOverride(readLocale(this._text()));
         this._isUpdating = true;
 
         this._updateTitle();
@@ -251,12 +255,46 @@ export const ScratchPadWindow = GObject.registerClass({
         });
     }
 
-    _writeFile(file) {
-        const start = this._buffer.get_start_iter();
-        const end = this._buffer.get_end_iter();
-        const text = this._buffer.get_text(start, end, true);
+    _text() {
+        const buffer = this._buffer;
+        return buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), true);
+    }
 
-        const bytes = new TextEncoder().encode(text);
+    _applyText(next) {
+        const buffer = this._buffer;
+        const current = this._text();
+
+        if (current === next)
+            return;
+
+        let head = 0;
+        while (head < current.length && head < next.length && current[head] === next[head])
+            head++;
+
+        let tail = 0;
+        while (tail < current.length - head && tail < next.length - head &&
+               current[current.length - 1 - tail] === next[next.length - 1 - tail])
+            tail++;
+
+        const start = buffer.get_iter_at_offset(head);
+        const end = buffer.get_iter_at_offset(current.length - tail);
+        buffer.delete(start, end);
+        buffer.insert(buffer.get_iter_at_offset(head), next.substring(head, next.length - tail), -1);
+    }
+
+    _embedLocale() {
+        const text = this._text();
+        const embedded = readLocale(text);
+        const value = isValidLocale(embedded) ? embedded : configuredLocale();
+
+        if (isValidLocale(value))
+            this._applyText(writeLocale(text, value));
+    }
+
+    _writeFile(file) {
+        this._embedLocale();
+
+        const bytes = new TextEncoder().encode(this._text());
 
         file.replace_contents_async(
             bytes,

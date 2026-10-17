@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="scratch-pad">
 	<schema id="com.sendyyeah.ScratchPad" path="/com/sendyyeah/ScratchPad/">
+		<key name="number-format-locale" type="s">
+			<default>''</default>
+			<summary>Number and date format locale</summary>
+			<description>BCP-47 locale (e.g. id-ID, en-US). Empty follows the system locale.</description>
+		</key>
 	</schema>
 </schemalist>

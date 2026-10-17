@@ -21,6 +21,10 @@
  * Ref: https://en.wikipedia.org/wiki/ISO_4217
  */
 
+import { formatNumber } from './format.js';
+
+const SUFFIX_SYMBOLS = ['kr', 'zł', 'Kč', 'Ft', 'lei', 'дин', 'лв'];
+
 const CURRENCY_SYMBOLS = {
     // ASEAN
     IDR: 'Rp',
@@ -127,21 +131,7 @@ export function getSymbol(code) {
 
 export function formatWithSymbol(value, code) {
     const symbol = getSymbol(code);
+    const number = formatNumber(value, 2);
 
-    let numStr;
-    if (Number.isInteger(value)) {
-        numStr = value.toLocaleString('id-ID');
-    } else {
-        numStr = value.toLocaleString('id-ID', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2,
-        });
-    }
-
-    const SUFFIX_SYMBOLS = ['kr', 'zł', 'Kč', 'Ft', 'lei', 'дин', 'лв'];
-
-    if (SUFFIX_SYMBOLS.includes(symbol)) {
-        return `${numStr} ${symbol}`;
-    }
-    return `${symbol}${numStr}`;
+    return SUFFIX_SYMBOLS.includes(symbol) ? `${number} ${symbol}` : `${symbol}${number}`;
 }

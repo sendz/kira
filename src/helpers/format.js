@@ -18,16 +18,22 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-export function normalizeNumbers(s) {
-    return s.replace(/(\d{1,3})(\.\d{3})+(?!\d)/g, (m) => m.replace(/\./g, ''));
+import { locale, separators } from './locale.js';
+
+export function normalizeNumbers(text) {
+    const { group, decimal } = separators();
+
+    if (group)
+        text = text.replace(new RegExp(`(\\d{1,3})(?:${escapeRegex(group)}\\d{3})+(?!\\d)`, 'g'),
+                            match => match.split(group).join(''));
+
+    return text.replace(new RegExp(`(\\d)${escapeRegex(decimal)}(\\d)`, 'g'), '$1.$2');
 }
 
-export function formatNumber(n) {
-    if (Number.isInteger(n)) {
-        return n.toLocaleString('id-ID');
-    }
-    return n.toLocaleString('id-ID', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 4,
-    });
+export function formatNumber(value, maximumFractionDigits = 4) {
+    return value.toLocaleString(locale(), { maximumFractionDigits });
+}
+
+function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

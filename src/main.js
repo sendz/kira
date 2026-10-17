@@ -24,6 +24,7 @@ import Gtk from 'gi://Gtk?version=4.0';
 import Adw from 'gi://Adw?version=1';
 
 import { ScratchPadWindow } from './window.js';
+import { presentPreferences } from './preferences.js';
 
 pkg.initGettext();
 pkg.initFormat();
@@ -95,6 +96,13 @@ export const ScratchPadApplication = GObject.registerClass(
             });
             this.add_action(save_as_action);
             this.set_accels_for_action('app.save-as', ['<control><shift>s']);
+
+            const preferences_action = new Gio.SimpleAction({ name: 'preferences' });
+            preferences_action.connect('activate', () => {
+                presentPreferences(this.active_window);
+            });
+            this.add_action(preferences_action);
+            this.set_accels_for_action('app.preferences', ['<control>comma']);
         }
 
         vfunc_activate() {

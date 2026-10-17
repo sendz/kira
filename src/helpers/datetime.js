@@ -18,6 +18,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { locale } from './locale.js';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const KEYWORDS = {
@@ -210,7 +212,7 @@ export function formatDate(date, includeTime = false) {
         options.hour12 = false;
     }
 
-    return new Intl.DateTimeFormat('id-ID', options).format(date);
+    return new Intl.DateTimeFormat(locale(), options).format(date);
 }
 
 export function diffDays(dateA, dateB) {
