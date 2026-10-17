@@ -40,7 +40,8 @@
                         ".flatpak-builder",
                         "_build",
                         "_flatpak",
-                        "_repo"
+                        "_repo",
+                        "screenshots"
                     ]
                 }
             ],
