@@ -9,13 +9,13 @@ on:
 jobs:
   flatpak:
     name: Build Flatpak
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned so the ubuntu-latest migration doesn't move CI
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
