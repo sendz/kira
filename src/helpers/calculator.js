@@ -23,6 +23,7 @@ import { normalizeNumbers, formatNumber } from './format.js';
 import { convertUnit, isUnit } from './unit.js';
 import { isCurrency, formatWithSymbol } from './currencies.js';
 import { isAggregateKeyword, computeAggregate } from './aggregator.js';
+import { isDateExpression, evaluateDate, formatDate, isDate } from './datetime.js';
 
 const AGGREGATE_LINE_REGEX = /^([A-Za-z]+)\b\s*(?::\s*(.*))?$/i;
 const CONVERT_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s*([a-zA-Z]+)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
@@ -53,7 +54,7 @@ export function insertResults(buffer, results) {
 }
 
 function collectResults(text) {
-    const scope = { values: {}, units: {}, currencies: {} };
+    const scope = { values: {}, units: {}, currencies: {}, dates: {} };
     const results = [];
     const pool = [];     // { value, currency } of non-aggregate result lines
     const marks = {};    // keyword -> pool index after its last aggregate
@@ -75,8 +76,16 @@ function collectResults(text) {
         if (outcome === null)
             continue;
 
-        pool.push({ value: outcome.value, currency: outcome.currency });
-        results.push({ lineIndex, value: outcome.value, currency: outcome.currency });
+        if (!outcome.date)
+            pool.push({ value: outcome.value, currency: outcome.currency });
+
+        results.push({
+            lineIndex,
+            value: outcome.value,
+            currency: outcome.currency,
+            date: outcome.date,
+            includeTime: outcome.includeTime,
+        });
     }
 
     return results;
@@ -135,6 +144,18 @@ function computeExpression(expression, scope) {
     const converted = tryConvert(cleaned, scope);
     if (converted)
         return converted;
+
+    if (isDateExpression(cleaned)) {
+        const date = evaluateDate(cleaned);
+        if (isDate(date))
+            return {
+                value: null,
+                unit: null,
+                currency: null,
+                date,
+                includeTime: /\b(now|hours?|minutes?|seconds?)\b/i.testd(cleaned),
+            };
+    }
 
     const number = evaluate(cleaned, scope.values);
     return number === null ? null : { value: number, ...inferMeasurement(cleaned, scope) };
@@ -212,8 +233,17 @@ function mergeCurrency(current, currency) {
     return current === currency ? current : null;
 }
 
-function setMeasurement(scope, name, { value, unit, currency }) {
+function setMeasurement(scope, name, { value, unit, currency, date }) {
+    if (date) {
+        scope.dates[name] = date;
+        delete scope.values[name];
+        delete scope.units[name];
+        delete scope.currencies[name];
+        return;
+    }
+
     scope.values[name] = value;
+    delete scope.dates[name];
 
     if (unit)
         scope.units[name] = unit;
@@ -233,7 +263,7 @@ function resolveValue(token, values) {
     return Object.prototype.hasOwnProperty.call(values, token) ? values[token] : null;
 }
 
-function insertResult(buffer, results, { lineIndex, value, currency }) {
+function insertResult(buffer, results, { lineIndex, value, currency, date, includeTime }) {
     const [ok, iter] = buffer.get_iter_at_line(lineIndex);
     if (!ok)
         return;
@@ -242,7 +272,11 @@ function insertResult(buffer, results, { lineIndex, value, currency }) {
     iter.forward_to_line_end();
     const lineEnd = iter.get_offset();
 
-    const display = currency ? formatWithSymbol(value, currency) : formatNumber(value);
+    const display = date
+        ? formatDate(date, includeTime)
+        : currency
+            ? formatWithSymbol(value, currency)
+            : formatNumber(value);
     const result = `\t= ${display}`;
     buffer.insert(iter, result, -1);
 

@@ -9,5 +9,6 @@
     <file>helpers/unit.js</file>
     <file>helpers/currencies.js</file>
     <file>helpers/aggregator.js</file>
+    <file>helpers/datetime.js</file>
   </gresource>
 </gresources>
