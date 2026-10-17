@@ -635,7 +635,7 @@ git config core.hooksPath .githooks
 - Use the body to explain *why* when it is not obvious.
 - Reference issues when relevant (`Fixes #12`).
 
-### AI Policy
+## AI Policy
 
 This project permits the use of Gen-AI technology in the code writing process, 
 from auto-complete through to fully generative agents, subject to certain 
@@ -649,7 +649,7 @@ Even where code is AI-assisted, contributors remain fully responsible for that
 code and must be able to explain its logic, intent, and technical consequences 
 when asked by a reviewer.
 
-#### Commit Message Tagging
+### Commit Message Tagging
 
 Include `gen` marker in the commit message, for example:
 
@@ -657,7 +657,7 @@ Include `gen` marker in the commit message, for example:
 fix(gen): Fix Calculation in unit conversion
 ```
 
-### License
+## License
 
 By contributing, you agree that your changes are released under the
 GPL-3.0-or-later license, the same license as Kira.
