@@ -20,10 +20,10 @@ jobs:
       - name: Build bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          manifest-path: com.sendyyeah.ScratchPad.json
-          bundle: com.sendyyeah.ScratchPad.flatpak
+          manifest-path: com.sendyyeah.Kira.json
+          bundle: com.sendyyeah.Kira.flatpak
           run-tests: true
           # TODO: Enable it later after stable
           # repository-name: flathub
           # repository-url: https://flathub.org/repo/flathub.flatpakrepo
-          artifact-name: com.sendyyeah.ScratchPad.flatpak
+          artifact-name: com.sendyyeah.Kira.flatpak

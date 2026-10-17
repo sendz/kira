@@ -1,8 +1,8 @@
 # List of source files containing translatable strings.
 # Please keep this file sorted alphabetically.
-data/com.sendyyeah.ScratchPad.desktop.in
-data/com.sendyyeah.ScratchPad.metainfo.xml.in
-data/com.sendyyeah.ScratchPad.gschema.xml
+data/com.sendyyeah.Kira.desktop.in
+data/com.sendyyeah.Kira.metainfo.xml.in
+data/com.sendyyeah.Kira.gschema.xml
 src/main.js
 src/window.js
 src/window.ui

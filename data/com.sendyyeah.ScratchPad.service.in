@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=com.sendyyeah.ScratchPad
-Exec=@bindir@/com.sendyyeah.ScratchPad --gapplication-service

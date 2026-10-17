@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=Scratch-pad
-Exec=com.sendyyeah.ScratchPad
-Icon=com.sendyyeah.ScratchPad
+Name=Kira
+Exec=com.sendyyeah.Kira
+Icon=com.sendyyeah.Kira
 Terminal=false
 Type=Application
 Categories=Utility;

@@ -1,6 +1,6 @@
 desktop_file = i18n.merge_file(
-        input: 'com.sendyyeah.ScratchPad.desktop.in',
-       output: 'com.sendyyeah.ScratchPad.desktop',
+        input: 'com.sendyyeah.Kira.desktop.in',
+       output: 'com.sendyyeah.Kira.desktop',
          type: 'desktop',
        po_dir: '../po',
       install: true,
@@ -13,8 +13,8 @@ if desktop_utils.found()
 endif
 
 appstream_file = i18n.merge_file(
-        input: 'com.sendyyeah.ScratchPad.metainfo.xml.in',
-       output: 'com.sendyyeah.ScratchPad.metainfo.xml',
+        input: 'com.sendyyeah.Kira.metainfo.xml.in',
+       output: 'com.sendyyeah.Kira.metainfo.xml',
        po_dir: '../po',
       install: true,
   install_dir: get_option('datadir') / 'metainfo'
@@ -24,7 +24,7 @@ appstreamcli = find_program('appstreamcli', required: false, disabler: true)
 test('Validate appstream file', appstreamcli,
      args: ['validate', '--no-net', '--explain', appstream_file])
 
-install_data('com.sendyyeah.ScratchPad.gschema.xml',
+install_data('com.sendyyeah.Kira.gschema.xml',
   install_dir: get_option('datadir') / 'glib-2.0' / 'schemas'
 )
 
@@ -37,8 +37,8 @@ test('Validate schema file',
 service_conf = configuration_data()
 service_conf.set('bindir', get_option('prefix') / get_option('bindir'))
 configure_file(
-  input: 'com.sendyyeah.ScratchPad.service.in',
-  output: 'com.sendyyeah.ScratchPad.service',
+  input: 'com.sendyyeah.Kira.service.in',
+  output: 'com.sendyyeah.Kira.service',
   configuration: service_conf,
   install_dir: get_option('datadir') / 'dbus-1' / 'services'
 )

@@ -1,4 +1,4 @@
-# Scratch Pad
+# Kira
 
 A note taking app that support simple markdown and simple calculation.
 

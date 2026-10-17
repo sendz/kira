@@ -69,7 +69,7 @@ export function isValidLocale(tag) {
 
 function config() {
     if (!settings)
-        settings = new Gio.Settings({ schema_id: 'com.sendyyeah.ScratchPad' });
+        settings = new Gio.Settings({ schema_id: 'com.sendyyeah.Kira' });
 
     return settings;
 }

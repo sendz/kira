@@ -30,11 +30,11 @@ import { setLocaleOverride, configuredLocale, isValidLocale, onLocaleChange } fr
 import { readLocale, writeLocale } from './helpers/metadata.js';
 import { refresh as refreshRates, onRatesChange } from './helpers/rates.js';
 
-export const ScratchPadWindow = GObject.registerClass({
-    GTypeName: 'ScratchPadWindow',
-    Template: 'resource:///com/sendyyeah/ScratchPad/window.ui',
+export const KiraWindow = GObject.registerClass({
+    GTypeName: 'KiraWindow',
+    Template: 'resource:///com/sendyyeah/Kira/window.ui',
     InternalChildren: ['text_view'],
-}, class ScratchPadWindow extends Adw.ApplicationWindow {
+}, class KiraWindow extends Adw.ApplicationWindow {
     constructor(application) {
         super({ application });
 
@@ -63,7 +63,7 @@ export const ScratchPadWindow = GObject.registerClass({
     }
 
     _updateTitle() {
-        let name = 'Scratch Pad';
+        let name = 'Kira';
         if (this._currentFile) {
             name = this._currentFile.get_basename();
         }

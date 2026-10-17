@@ -2,8 +2,8 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <requires lib="Adw" version="1.0"/>
-  <template class="ScratchPadWindow" parent="AdwApplicationWindow">
-    <property name="title" translatable="yes">Scratch Pad</property>
+  <template class="KiraWindow" parent="AdwApplicationWindow">
+    <property name="title" translatable="yes">Kira</property>
     <property name="default-width">800</property>
     <property name="default-height">600</property>
     <property name="content">
@@ -64,7 +64,7 @@
         <attribute name="action">app.preferences</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">_About Scratch Pad</attribute>
+        <attribute name="label" translatable="yes">_About Kira</attribute>
         <attribute name="action">app.about</attribute>
       </item>
     </section>

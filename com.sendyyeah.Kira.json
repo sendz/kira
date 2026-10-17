@@ -1,13 +1,9 @@
 {
-    "id" : "com.sendyyeah.ScratchPad",
-    "runtime" : "org.gnome.Sdk",
-    "runtime-version" : "master",
+    "id" : "com.sendyyeah.Kira",
+    "runtime" : "org.gnome.Platform",
+    "runtime-version" : "50",
     "sdk" : "org.gnome.Sdk",
-    "sdk-extensions" : [
-        "org.freedesktop.Sdk.Extension.node20",
-        "org.freedesktop.Sdk.Extension.typescript"
-    ],
-    "command" : "com.sendyyeah.ScratchPad",
+    "command" : "com.sendyyeah.Kira",
     "finish-args" : [
         "--share=network",
         "--share=ipc",
@@ -32,13 +28,20 @@
     ],
     "modules" : [
         {
-            "name" : "scratch-pad",
+            "name" : "kira",
             "builddir" : true,
             "buildsystem" : "meson",
             "sources" : [
                 {
-                    "type" : "git",
-                    "url" : "file:///home/sendy/Projects"
+                    "type" : "dir",
+                    "path" : "./",
+                    "skip" : [
+                        ".git",
+                        ".flatpak-builder",
+                        "_build",
+                        "_flatpak",
+                        "_repo"
+                    ]
                 }
             ],
             "config-opts" : [

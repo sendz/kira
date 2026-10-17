@@ -1,1 +1,1 @@
-i18n.gettext('scratch-pad', preset: 'glib')
+i18n.gettext('kira', preset: 'glib')

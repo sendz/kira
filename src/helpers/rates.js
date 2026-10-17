@@ -23,7 +23,7 @@ import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
 const ENDPOINT = 'https://api.frankfurter.dev/v1/latest?base=USD';
-const CACHE_DIR = GLib.build_filenamev([GLib.get_user_cache_dir(), 'com.sendyyeah.ScratchPad']);
+const CACHE_DIR = GLib.build_filenamev([GLib.get_user_cache_dir(), 'com.sendyyeah.Kira']);
 const CACHE_FILE = GLib.build_filenamev([CACHE_DIR, 'rates.json']);
 const MAX_AGE = 24 * 60 * 60 * 1000;
 
@@ -155,7 +155,7 @@ function fetchRates() {
 
 function config() {
     if (!settings)
-        settings = new Gio.Settings({ schema_id: 'com.sendyyeah.ScratchPad' });
+        settings = new Gio.Settings({ schema_id: 'com.sendyyeah.Kira' });
 
     return settings;
 }

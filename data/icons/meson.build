@@ -1,4 +1,4 @@
-application_id = 'com.sendyyeah.ScratchPad'
+application_id = 'com.sendyyeah.Kira'
 
 scalable_dir = 'hicolor' / 'scalable' / 'apps'
 install_data(

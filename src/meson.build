@@ -1,15 +1,15 @@
 pkgdatadir = get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
-src_res = gnome.compile_resources('com.sendyyeah.ScratchPad.src',
-  'com.sendyyeah.ScratchPad.src.gresource.xml',
+src_res = gnome.compile_resources('com.sendyyeah.Kira.src',
+  'com.sendyyeah.Kira.src.gresource.xml',
   gresource_bundle: true,
   install: true,
   install_dir: pkgdatadir,
 )
 
-data_res = gnome.compile_resources('com.sendyyeah.ScratchPad.data',
-  'com.sendyyeah.ScratchPad.data.gresource.xml',
+data_res = gnome.compile_resources('com.sendyyeah.Kira.data',
+  'com.sendyyeah.Kira.data.gresource.xml',
   gresource_bundle: true,
   install: true,
   install_dir: pkgdatadir,
@@ -22,11 +22,11 @@ bin_conf.set('PACKAGE_NAME', meson.project_name())
 bin_conf.set('prefix', get_option('prefix'))
 bin_conf.set('libdir', get_option('prefix') / get_option('libdir'))
 bin_conf.set('datadir', get_option('prefix') / get_option('datadir'))
-bin_conf.set('resource_path', '/com/sendyyeah/ScratchPad')
+bin_conf.set('resource_path', '/com/sendyyeah/Kira')
 
 configure_file(
-  input: 'com.sendyyeah.ScratchPad.in',
-  output: 'com.sendyyeah.ScratchPad',
+  input: 'com.sendyyeah.Kira.in',
+  output: 'com.sendyyeah.Kira',
   configuration: bin_conf,
   install: true,
   install_dir: get_option('bindir')
