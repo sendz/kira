@@ -20,9 +20,13 @@
 
 import { stripMarkdown } from './markdown.js';
 import { normalizeNumbers, formatNumber } from './format.js';
-import { convertUnit, isUnit } from './unit.js'
+import { convertUnit, isUnit } from './unit.js';
 
 const TOTAL_LINE_REGEX = /^total\b\s*(?:=\s*(.*))?$/i;
+const CONVERT_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s*([a-zA-Z]+)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
+const CONVERT_VARIABLE_REGEX = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
+const QUANTITY_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s+([a-zA-Z]+)\s*$/i;
+const CONVERT_EXPRESSION_REGEX = /^\s*(.+?)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
 
 export function clearResults(buffer, results) {
     for (const { start, end } of results) {
@@ -47,42 +51,45 @@ export function insertResults(buffer, results) {
 }
 
 function collectResults(text) {
-    const scope = {};
+    const values = {};
+    const units = {};
     const results = [];
     let sectionTotal = 0;
 
     for (const [lineIndex, line] of text.split('\n').entries()) {
         const total = line.match(TOTAL_LINE_REGEX);
         if (total) {
-            const value = totalValue(total[1], scope, sectionTotal);
+            const value = totalValue(total[1], values, units, sectionTotal);
             if (value !== null) {
-                scope.total = value;
+                values.total = value;
+                delete units.total;
                 results.push({ lineIndex, value });
             }
             sectionTotal = 0;
             continue;
         }
 
-        const value = evaluateLine(line, scope);
-        if (value === null)
+        const outcome = evaluateLine(line, values, units);
+        if (outcome === null)
             continue;
 
-        sectionTotal += value;
-        results.push({ lineIndex, value });
+        sectionTotal += outcome.value;
+        results.push({ lineIndex, value: outcome.value });
     }
 
     return results;
 }
 
-function totalValue(expression, scope, sectionTotal) {
+function totalValue(expression, values, units, sectionTotal) {
     const trimmed = (expression ?? '').trim();
     if (!trimmed)
         return sectionTotal;
 
-    return computeExpression(trimmed, scope);
+    const outcome = computeExpression(trimmed, values, units);
+    return outcome === null ? null : outcome.value;
 }
 
-function evaluateLine(line, scope) {
+function evaluateLine(line, values, units) {
     if (!line.trim() || /^#{1,6}\s/.test(line) || /^>/.test(line))
         return null;
 
@@ -94,21 +101,94 @@ function evaluateLine(line, scope) {
     if (!expression)
         return null;
 
-    const value = computeExpression(expression, scope);
-    if (value === null)
+    const outcome = computeExpression(expression, values, units);
+    if (outcome === null)
         return null;
 
     const name = line.substring(0, separator).trim().match(/^([A-Za-z_][A-Za-z0-9_]*)/);
-    if (name)
-        scope[name[1]] = value;
+    if (name) {
+        values[name[1]] = outcome.value;
+        if (outcome.unit)
+            units[name[1]] = outcome.unit;
+        else
+            delete units[name[1]];
+    }
 
-    return value;
+    return outcome;
 }
 
-function computeExpression(expression, scope) {
+function computeExpression(expression, values, units) {
     const cleaned = normalizeNumbers(stripMarkdown(expression));
-    const converted = tryConvert(cleaned, scope);
-    return converted !== null ? converted : evaluate(cleaned, scope);
+
+    const converted = tryConvert(cleaned, values, units);
+    if (converted)
+        return converted;
+
+    const number = evaluate(cleaned, values);
+    return number === null ? null : { value: number, unit: null };
+}
+
+// Recognises, in order: "<value> <from> to <to>", "<variable> to <to>" using a
+// variable's remembered unit, a bare quantity "<value> <unit>", and finally an
+// arbitrary "<expression> to <to>" where every unit-carrying variable shares
+// one unit.
+function tryConvert(expression, values, units) {
+    const full = expression.match(CONVERT_REGEX);
+    if (full) {
+        const value = resolveValue(full[1], values);
+        if (value !== null && isUnit(full[2]) && isUnit(full[3])) {
+            const converted = convertUnit(value, full[2], full[3]);
+            if (converted !== null)
+                return { value: converted, unit: full[3].toLowerCase() };
+        }
+    }
+
+    const variable = expression.match(CONVERT_VARIABLE_REGEX);
+    if (variable && units[variable[1]] && isUnit(variable[2])) {
+        const converted = convertUnit(values[variable[1]], units[variable[1]], variable[2]);
+        if (converted !== null)
+            return { value: converted, unit: variable[2].toLowerCase() };
+    }
+
+    const quantity = expression.match(QUANTITY_REGEX);
+    if (quantity) {
+        const value = resolveValue(quantity[1], values);
+        if (value !== null && isUnit(quantity[2]))
+            return { value, unit: quantity[2].toLowerCase() };
+    }
+
+    const derived = expression.match(CONVERT_EXPRESSION_REGEX);
+    if (derived && isUnit(derived[2])) {
+        const source = inferUnit(derived[1], values, units);
+        const number = source === null ? null : evaluate(derived[1], values);
+        if (number !== null) {
+            const converted = convertUnit(number, source, derived[2]);
+            if (converted !== null)
+                return { value: converted, unit: derived[2].toLowerCase() };
+        }
+    }
+
+    return null;
+}
+
+// The shared unit of every variable referenced by an expression, or null when
+// there are none or they disagree.
+function inferUnit(expression, values, units) {
+    const names = expression.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
+    const known = names.filter(name => Object.prototype.hasOwnProperty.call(values, name));
+
+    const unit = units[known[0]];
+    if (!unit || known.some(name => units[name] !== unit))
+        return null;
+
+    return unit;
+}
+
+function resolveValue(token, values) {
+    if (/^-?\d/.test(token))
+        return parseFloat(token);
+
+    return Object.prototype.hasOwnProperty.call(values, token) ? values[token] : null;
 }
 
 function insertResult(buffer, results, { lineIndex, value }) {
@@ -148,28 +228,4 @@ export function evaluate(expr, scope) {
     } catch (e) {
         return null;
     }
-}
-
-function tryConvert(expr, scope) {
-    const match = expr.match(
-        /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s*([a-zA-Z]+)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i
-    );
-    if (!match) return null;
-
-    const value = resolveValue(match[1], scope);
-    if (value === null) return null;
-
-    const from = match[2];
-    const to = match[3];
-
-    if (!isUnit(from) || !isUnit(to)) return null;
-
-    return convertUnit(value, from, to);
-}
-
-function resolveValue(token, scope) {
-    if (/^-?\d/.test(token))
-        return parseFloat(token);
-
-    return Object.prototype.hasOwnProperty.call(scope, token) ? scope[token] : null;
 }
