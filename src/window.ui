@@ -14,7 +14,7 @@
               <object class="GtkMenuButton">
                 <property name="primary">True</property>
                 <property name="icon-name">open-menu-symbolic</property>
-                <property name="tooltip-text" translatable="yes">Main Menu</property>
+                <property name="tooltip-text" translatable="yes">main_menu</property>
                 <property name="menu-model">primary_menu</property>
               </object>
             </child>
@@ -42,29 +42,29 @@
   <menu id="primary_menu">
     <section>
       <item>
-        <attribute name="label" translatable="yes">_New</attribute>
+        <attribute name="label" translatable="yes">menu_new</attribute>
         <attribute name="action">app.new</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">_Open</attribute>
+        <attribute name="label" translatable="yes">menu_open</attribute>
         <attribute name="action">app.open</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">_Save</attribute>
+        <attribute name="label" translatable="yes">menu_save</attribute>
         <attribute name="action">app.save</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">Save _As</attribute>
+        <attribute name="label" translatable="yes">menu_save_as</attribute>
         <attribute name="action">app.save-as</attribute>
       </item>
     </section>
     <section>
       <item>
-        <attribute name="label" translatable="yes">_Preferences</attribute>
+        <attribute name="label" translatable="yes">menu_preferences</attribute>
         <attribute name="action">app.preferences</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">_About Kira</attribute>
+        <attribute name="label" translatable="yes">menu_about</attribute>
         <attribute name="action">app.about</attribute>
       </item>
     </section>

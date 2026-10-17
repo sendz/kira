@@ -144,14 +144,14 @@ export const KiraWindow = GObject.registerClass({
         const dialog = new Adw.MessageDialog({
             transient_for: this,
             modal: true,
-            heading: 'Save changes?',
+            heading: _('save_changes_title'),
             body: this._currentFile
-                ? `Save changes to “${this._currentFile.get_basename()}” before continuing?`
-                : 'Save your changes before continuing?',
+                ? _('save_changes_named').format(this._currentFile.get_basename())
+                : _('save_changes_body'),
         });
-        dialog.add_response('cancel', 'Cancel');
-        dialog.add_response('discard', 'Discard');
-        dialog.add_response('save', 'Save');
+        dialog.add_response('cancel', _('cancel'));
+        dialog.add_response('discard', _('discard'));
+        dialog.add_response('save', _('save'));
         dialog.set_response_appearance('discard', Adw.ResponseAppearance.DESTRUCTIVE);
         dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
         dialog.set_default_response('save');
@@ -186,11 +186,11 @@ export const KiraWindow = GObject.registerClass({
 
     _openFileDialog() {
         const dialog = new Gtk.FileDialog();
-        dialog.set_title('Open File');
+        dialog.set_title(_('open_file'));
 
         // Filter: Only show .txt, .md, .numi file
         const filter = new Gtk.FileFilter();
-        filter.set_name('Text files');
+        filter.set_name(_('text_files'));
         filter.add_pattern('*.txt');
         filter.add_pattern('*.md');
         filter.add_pattern('*.numi');
@@ -239,7 +239,7 @@ export const KiraWindow = GObject.registerClass({
 
     saveFileAs() {
         const dialog = new Gtk.FileDialog();
-        dialog.set_title('Save File');
+        dialog.set_title(_('save_file'));
         dialog.set_initial_name(
             this._currentFile
                 ? this._currentFile.get_basename()

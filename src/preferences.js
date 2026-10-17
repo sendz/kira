@@ -24,41 +24,40 @@ import Gtk from 'gi://Gtk';
 import { configuredLocale, setConfiguredLocale, isValidLocale } from './helpers/locale.js';
 import { ratesEnabled, setRatesEnabled, rateDate, onRatesChange, refresh as refreshRates } from './helpers/rates.js';
 
-const PRESETS = [
-    ['System default', ''],
-    ['id-ID — Indonesia', 'id-ID'],
-    ['en-US — English (United States)', 'en-US'],
-    ['en-GB — English (United Kingdom)', 'en-GB'],
-    ['de-DE — Deutsch', 'de-DE'],
-    ['fr-FR — Français', 'fr-FR'],
-    ['es-ES — Español', 'es-ES'],
-    ['ja-JP — 日本語', 'ja-JP'],
-    ['zh-CN — 中文', 'zh-CN'],
-];
-
-const CUSTOM = PRESETS.length;
-
 export function presentPreferences(window) {
+    const presets = [
+        [_('system_default'), ''],
+        ['id-ID — Indonesia', 'id-ID'],
+        ['en-US — English (United States)', 'en-US'],
+        ['en-GB — English (United Kingdom)', 'en-GB'],
+        ['de-DE — Deutsch', 'de-DE'],
+        ['fr-FR — Français', 'fr-FR'],
+        ['es-ES — Español', 'es-ES'],
+        ['ja-JP — 日本語', 'ja-JP'],
+        ['zh-CN — 中文', 'zh-CN'],
+    ];
+    const custom = presets.length;
+
     const dialog = new Adw.PreferencesDialog();
-    const page = new Adw.PreferencesPage({ title: 'Preferences' });
-    const group = new Adw.PreferencesGroup({ title: 'Number format' });
+    const page = new Adw.PreferencesPage({ title: _('preferences') });
+    const group = new Adw.PreferencesGroup({ title: _('number_format') });
 
     const combo = new Adw.ComboRow({
-        title: 'Locale',
-        model: Gtk.StringList.new([...PRESETS.map(([label]) => label), 'Custom…']),
+        title: _('locale'),
+        model: Gtk.StringList.new([...presets.map(([label]) => label), _('custom')]),
     });
 
-    const entry = new Adw.EntryRow({ title: 'Custom locale', show_apply_button: false });
-    const preview = new Adw.ActionRow({ title: 'Preview' });
+    const entry = new Adw.EntryRow({ title: _('custom_locale'), show_apply_button: false });
+    const preview = new Adw.ActionRow({ title: _('preview') });
 
     group.add(combo);
     group.add(entry);
     group.add(preview);
     page.add(group);
 
-    const ratesGroup = new Adw.PreferencesGroup({ title: 'Currency conversion' });
-    const ratesSwitch = new Adw.SwitchRow({ title: 'Automatic exchange rates', active: ratesEnabled() });
-    const ratesRow = new Adw.ActionRow({ title: 'Exchange rates', subtitle: ratesSubtitle() });
+    const ratesGroup = new Adw.PreferencesGroup({ title: _('currency_conversion') });
+    const ratesSwitch = new Adw.SwitchRow({ title: _('automatic_exchange_rates'), active: ratesEnabled() });
+    const ratesRow = new Adw.ActionRow({ title: _('exchange_rates'), subtitle: ratesSubtitle() });
     const refreshButton = new Gtk.Button({ icon_name: 'view-refresh-symbolic', valign: Gtk.Align.CENTER });
 
     refreshButton.add_css_class('flat');
@@ -76,16 +75,16 @@ export function presentPreferences(window) {
     dialog.add(page);
 
     const current = configuredLocale();
-    const preset = PRESETS.findIndex(([, value]) => value !== '' && value === current);
+    const preset = presets.findIndex(([, value]) => value !== '' && value === current);
 
     if (preset !== -1)
         combo.set_selected(preset);
     else if (current) {
-        combo.set_selected(CUSTOM);
+        combo.set_selected(custom);
         entry.set_text(current);
     }
 
-    entry.set_visible(combo.get_selected() === CUSTOM);
+    entry.set_visible(combo.get_selected() === custom);
     preview.set_subtitle(previewText(current));
 
     const apply = value => {
@@ -95,14 +94,14 @@ export function presentPreferences(window) {
 
     combo.connect('notify::selected', () => {
         const index = combo.get_selected();
-        const custom = index === CUSTOM;
+        const isCustom = index === custom;
 
-        entry.set_visible(custom);
+        entry.set_visible(isCustom);
 
-        if (!custom) {
+        if (!isCustom) {
             entry.set_text('');
             entry.remove_css_class('error');
-            apply(PRESETS[index][1]);
+            apply(presets[index][1]);
         }
     });
 
@@ -121,7 +120,7 @@ export function presentPreferences(window) {
 
 function ratesSubtitle() {
     const date = rateDate();
-    return date ? `Updated ${date}` : 'Not available yet';
+    return date ? _('updated').format(date) : _('not_available');
 }
 
 function previewText(value) {

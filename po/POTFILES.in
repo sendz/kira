@@ -1,8 +1,9 @@
 # List of source files containing translatable strings.
 # Please keep this file sorted alphabetically.
 data/com.sendyyeah.Kira.desktop.in
-data/com.sendyyeah.Kira.metainfo.xml.in
 data/com.sendyyeah.Kira.gschema.xml
+data/com.sendyyeah.Kira.metainfo.xml.in
 src/main.js
+src/preferences.js
 src/window.js
 src/window.ui

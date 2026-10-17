@@ -1,0 +1,122 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: kira\n"
+"Language: en\n"
+"PO-Revision-Date: 2026-10-17 10:00+0700\n"
+"Last-Translator: Kira translators\n"
+"Language-Team: English\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Kira"
+msgstr ""
+
+msgid "GTK;"
+msgstr ""
+
+msgid "Number and date format locale"
+msgstr ""
+
+msgid "BCP-47 locale (e.g. id-ID, en-US). Empty follows the system locale."
+msgstr ""
+
+msgid "Automatic exchange rates"
+msgstr ""
+
+msgid "Keep the summary shorter, between 10 and 35 characters"
+msgstr ""
+
+msgid "No description"
+msgstr ""
+
+msgid "A caption"
+msgstr ""
+
+msgid "translator-credits"
+msgstr ""
+
+msgid "system_default"
+msgstr "System default"
+
+msgid "preferences"
+msgstr "Preferences"
+
+msgid "number_format"
+msgstr "Number format"
+
+msgid "locale"
+msgstr "Locale"
+
+msgid "custom"
+msgstr "Custom…"
+
+msgid "custom_locale"
+msgstr "Custom locale"
+
+msgid "preview"
+msgstr "Preview"
+
+msgid "currency_conversion"
+msgstr "Currency conversion"
+
+msgid "automatic_exchange_rates"
+msgstr "Automatic exchange rates"
+
+msgid "exchange_rates"
+msgstr "Exchange rates"
+
+msgid "updated"
+msgstr "Updated %s"
+
+msgid "not_available"
+msgstr "Not available yet"
+
+msgid "save_changes_title"
+msgstr "Save changes?"
+
+msgid "save_changes_named"
+msgstr "Save changes to “%s” before continuing?"
+
+msgid "save_changes_body"
+msgstr "Save your changes before continuing?"
+
+msgid "cancel"
+msgstr "Cancel"
+
+msgid "discard"
+msgstr "Discard"
+
+msgid "save"
+msgstr "Save"
+
+msgid "open_file"
+msgstr "Open File"
+
+msgid "text_files"
+msgstr "Text files"
+
+msgid "save_file"
+msgstr "Save File"
+
+msgid "main_menu"
+msgstr "Main Menu"
+
+msgid "menu_new"
+msgstr "_New"
+
+msgid "menu_open"
+msgstr "_Open"
+
+msgid "menu_save"
+msgstr "_Save"
+
+msgid "menu_save_as"
+msgstr "Save _As"
+
+msgid "menu_preferences"
+msgstr "_Preferences"
+
+msgid "menu_about"
+msgstr "_About Kira"
