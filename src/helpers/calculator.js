@@ -145,20 +145,24 @@ function computeExpression(expression, scope) {
     if (converted)
         return converted;
 
-    if (isDateExpression(cleaned)) {
-        const date = evaluateDate(cleaned);
+    if (isDateExpression(cleaned, scope.dates)) {
+        const date = evaluateDate(cleaned, scope.dates, scope.values, scope.units);
         if (isDate(date))
             return {
                 value: null,
                 unit: null,
                 currency: null,
                 date,
-                includeTime: /\b(now|hours?|minutes?|seconds?)\b/i.testd(cleaned),
+                includeTime: hasTimeOfDay(date) || /\bnow\b/i.test(cleaned),
             };
     }
 
     const number = evaluate(cleaned, scope.values);
     return number === null ? null : { value: number, ...inferMeasurement(cleaned, scope) };
+}
+
+function hasTimeOfDay(date) {
+    return date.getHours() !== 0 || date.getMinutes() !== 0 || date.getSeconds() !== 0;
 }
 
 // Recognises, in order: "<value> <from> to <to>", "<variable> to <to>" using a

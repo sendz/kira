@@ -27,6 +27,15 @@ const KEYWORDS = {
     yesterday: 'yesterday',
 };
 
+// Whole-day offset each keyword represents when used as a duration, so
+// "now + tomorrow" reads as "now + 1 day".
+const KEYWORD_DAYS = {
+    today: 0,
+    now: 0,
+    tomorrow: 1,
+    yesterday: -1,
+};
+
 const TIME_UNITS = {
     day: 'days',
     days: 'days',
@@ -49,44 +58,92 @@ export function isDateKeyword(word) {
     return KEYWORDS[word.trim().toLowerCase()] !== undefined;
 }
 
-export function isDateExpression(s) {
-    if (!s) return false;
-    const str = s.trim().toLowerCase();
-
-    // Keyword murni
-    if (KEYWORDS[str]) return true;
-
-    // Keyword + offset
-    const match = str.match(/^(today|now|tomorrow|yesterday)\s*([+-])\s*(\d+)\s*([a-z]+)$/);
-    if (match) return true;
-
-    // Selisih dua tanggal (nanti)
-    return false;
+export function isTimeUnit(word) {
+    if (!word) return false;
+    return TIME_UNITS[word.trim().toLowerCase()] !== undefined;
 }
 
-export function evaluateDate(s) {
-    if (!s) return null;
-    const str = s.trim().toLowerCase();
+export function isDateExpression(s, dates = {}) {
+    return parseDateExpression(s, dates) !== null;
+}
 
-    if (KEYWORDS[str]) {
-        return keywordToDate(KEYWORDS[str]);
+export function evaluateDate(s, dates = {}, values = {}, units = {}) {
+    const parsed = parseDateExpression(s, dates);
+    if (!parsed) return null;
+
+    let date = baseDate(parsed.base, dates);
+    if (!date) return null;
+
+    for (const offset of parsed.offsets) {
+        const term = resolveOffset(offset, values, units);
+        if (!term) return null;
+
+        date = addTime(date, offset.sign === '+' ? term.amount : -term.amount, term.unit);
+        if (!date) return null;
     }
 
-    // Keyword + offset
-    const match = str.match(/^(today|now|tomorrow|yesterday)\s*([+-])\s*(\d+)\s*([a-z]+)$/);
-    if (match) {
-        const base = keywordToDate(KEYWORDS[match[1]]);
-        if (!base) return null;
+    return date;
+}
 
-        const sign = match[2] === '+' ? 1 : -1;
-        const amount = parseInt(match[3], 10);
-        const unit = TIME_UNITS[match[4]];
-        if (!unit) return null;
+// base : keyword | date variable        (dates)
+// offset : ('+' | '-') (amount unit | duration)
+//   amount   : number | numeric variable (values)
+//   unit     : time unit                 (TIME_UNITS)
+//   duration : date keyword | time-unit variable (values + units)
+function parseDateExpression(s, dates) {
+    const tokens = (s ?? '').trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0 || !baseDate(tokens[0], dates)) return null;
 
-        return addTime(base, sign * amount, unit);
+    const offsets = [];
+    let i = 1;
+    while (i < tokens.length) {
+        const sign = tokens[i];
+        if (sign !== '+' && sign !== '-') return null;
+
+        const first = tokens[i + 1];
+        if (first === undefined) return null;
+
+        const unit = TIME_UNITS[(tokens[i + 2] ?? '').toLowerCase()];
+        if (unit) {
+            offsets.push({ sign, amount: first, unit });
+            i += 3;
+        } else {
+            offsets.push({ sign, duration: first });
+            i += 2;
+        }
     }
+
+    return { base: tokens[0], offsets };
+}
+
+function baseDate(token, dates) {
+    const keyword = KEYWORDS[(token ?? '').toLowerCase()];
+    if (keyword) return keywordToDate(keyword);
+
+    return Object.prototype.hasOwnProperty.call(dates, token) ? dates[token] : null;
+}
+
+function resolveOffset({ amount, unit, duration }, values, units) {
+    if (amount !== undefined) {
+        const value = resolveAmount(amount, values);
+        return value === null ? null : { amount: value, unit };
+    }
+
+    const keyword = KEYWORDS[(duration ?? '').toLowerCase()];
+    if (keyword) {
+        const days = KEYWORD_DAYS[keyword];
+        return days === undefined ? null : { amount: days, unit: 'days' };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(values, duration) && isTimeUnit(units[duration]))
+        return { amount: values[duration], unit: TIME_UNITS[units[duration].toLowerCase()] };
 
     return null;
+}
+
+function resolveAmount(token, values) {
+    if (/^-?\d+$/.test(token)) return parseInt(token, 10);
+    return Object.prototype.hasOwnProperty.call(values, token) ? values[token] : null;
 }
 
 function keywordToDate(keyword) {
@@ -163,4 +220,3 @@ export function diffDays(dateA, dateB) {
 export function isDate(value) {
     return value instanceof Date && !isNaN(value);
 }
-
