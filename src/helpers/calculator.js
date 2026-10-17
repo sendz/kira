@@ -22,6 +22,7 @@ import { stripMarkdown } from './markdown.js';
 import { normalizeNumbers, formatNumber } from './format.js';
 import { convertUnit, isUnit } from './unit.js';
 import { isCurrency, formatWithSymbol } from './currencies.js';
+import { convertCurrency } from './rates.js';
 import { isAggregateKeyword, computeAggregate } from './aggregator.js';
 import { isDateExpression, evaluateDate, formatDate, isDate } from './datetime.js';
 
@@ -166,24 +167,27 @@ function hasTimeOfDay(date) {
 }
 
 // Recognises, in order: "<value> <from> to <to>", "<variable> to <to>" using a
-// variable's remembered unit, a bare "<value> <unit|currency>", and finally an
-// arbitrary "<expression> to <unit>" whose variables share one unit.
+// variable's remembered unit or currency, a bare "<value> <unit|currency>", and
+// finally "<expression> to <to>" whose variables share one unit or currency.
 function tryConvert(expression, scope) {
     const full = expression.match(CONVERT_REGEX);
     if (full) {
         const value = resolveValue(full[1], scope.values);
-        if (value !== null && isUnit(full[2]) && isUnit(full[3])) {
-            const converted = convertUnit(value, full[2], full[3]);
-            if (converted !== null)
-                return { value: converted, unit: full[3].toLowerCase(), currency: null };
+        if (value !== null) {
+            const converted = convertMeasurement(value, full[2], full[3]);
+            if (converted)
+                return converted;
         }
     }
 
     const variable = expression.match(CONVERT_VARIABLE_REGEX);
-    if (variable && scope.units[variable[1]] && isUnit(variable[2])) {
-        const converted = convertUnit(scope.values[variable[1]], scope.units[variable[1]], variable[2]);
-        if (converted !== null)
-            return { value: converted, unit: variable[2].toLowerCase(), currency: null };
+    if (variable) {
+        const from = scope.units[variable[1]] || scope.currencies[variable[1]];
+        if (from) {
+            const converted = convertMeasurement(scope.values[variable[1]], from, variable[2]);
+            if (converted)
+                return converted;
+        }
     }
 
     const quantity = expression.match(QUANTITY_REGEX);
@@ -197,14 +201,28 @@ function tryConvert(expression, scope) {
     }
 
     const derived = expression.match(CONVERT_EXPRESSION_REGEX);
-    if (derived && isUnit(derived[2])) {
-        const { unit } = inferMeasurement(derived[1], scope);
-        const number = unit === null ? null : evaluate(derived[1], scope.values);
+    if (derived) {
+        const { unit, currency } = inferMeasurement(derived[1], scope);
+        const number = (unit || currency) ? evaluate(derived[1], scope.values) : null;
         if (number !== null) {
-            const converted = convertUnit(number, unit, derived[2]);
-            if (converted !== null)
-                return { value: converted, unit: derived[2].toLowerCase(), currency: null };
+            const converted = convertMeasurement(number, unit || currency, derived[2]);
+            if (converted)
+                return converted;
         }
+    }
+
+    return null;
+}
+
+function convertMeasurement(value, from, to) {
+    if (isUnit(from) && isUnit(to)) {
+        const converted = convertUnit(value, from, to);
+        return converted === null ? null : { value: converted, unit: to.toLowerCase(), currency: null };
+    }
+
+    if (isCurrency(from) && isCurrency(to)) {
+        const converted = convertCurrency(value, from, to);
+        return converted === null ? null : { value: converted, unit: null, currency: to.toUpperCase() };
     }
 
     return null;

@@ -22,6 +22,7 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 
 import { configuredLocale, setConfiguredLocale, isValidLocale } from './helpers/locale.js';
+import { ratesEnabled, setRatesEnabled, rateDate, onRatesChange, refresh as refreshRates } from './helpers/rates.js';
 
 const PRESETS = [
     ['System default', ''],
@@ -54,6 +55,24 @@ export function presentPreferences(window) {
     group.add(entry);
     group.add(preview);
     page.add(group);
+
+    const ratesGroup = new Adw.PreferencesGroup({ title: 'Currency conversion' });
+    const ratesSwitch = new Adw.SwitchRow({ title: 'Automatic exchange rates', active: ratesEnabled() });
+    const ratesRow = new Adw.ActionRow({ title: 'Exchange rates', subtitle: ratesSubtitle() });
+    const refreshButton = new Gtk.Button({ icon_name: 'view-refresh-symbolic', valign: Gtk.Align.CENTER });
+
+    refreshButton.add_css_class('flat');
+    ratesRow.add_suffix(refreshButton);
+    ratesGroup.add(ratesSwitch);
+    ratesGroup.add(ratesRow);
+    page.add(ratesGroup);
+
+    ratesSwitch.connect('notify::active', () => setRatesEnabled(ratesSwitch.get_active()));
+    refreshButton.connect('clicked', () => refreshRates(true));
+
+    const offRates = onRatesChange(() => ratesRow.set_subtitle(ratesSubtitle()));
+    dialog.connect('closed', () => offRates());
+
     dialog.add(page);
 
     const current = configuredLocale();
@@ -98,6 +117,11 @@ export function presentPreferences(window) {
     });
 
     dialog.present(window);
+}
+
+function ratesSubtitle() {
+    const date = rateDate();
+    return date ? `Updated ${date}` : 'Not available yet';
 }
 
 function previewText(value) {

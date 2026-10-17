@@ -28,6 +28,7 @@ import { setupMarkdownTags, applyMarkdown, setResultTabStop } from './helpers/ma
 import { clearResults, insertResults } from './helpers/calculator.js';
 import { setLocaleOverride, configuredLocale, isValidLocale, onLocaleChange } from './helpers/locale.js';
 import { readLocale, writeLocale } from './helpers/metadata.js';
+import { refresh as refreshRates, onRatesChange } from './helpers/rates.js';
 
 export const ScratchPadWindow = GObject.registerClass({
     GTypeName: 'ScratchPadWindow',
@@ -50,6 +51,8 @@ export const ScratchPadWindow = GObject.registerClass({
         setupMarkdownTags(this._buffer);
         this._followViewWidth();
         onLocaleChange(() => this._scheduleRefresh());
+        onRatesChange(() => this._scheduleRefresh());
+        refreshRates();
         this._buffer.connect('changed', () => {
             if (this._isUpdating)
                 return;

@@ -12,6 +12,7 @@
     <file>helpers/locale.js</file>
     <file>helpers/markdown.js</file>
     <file>helpers/metadata.js</file>
+    <file>helpers/rates.js</file>
     <file>helpers/unit.js</file>
   </gresource>
 </gresources>

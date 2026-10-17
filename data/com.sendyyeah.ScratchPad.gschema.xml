@@ -6,5 +6,10 @@
 			<summary>Number and date format locale</summary>
 			<description>BCP-47 locale (e.g. id-ID, en-US). Empty follows the system locale.</description>
 		</key>
+		<key name="currency-rates-enabled" type="b">
+			<default>true</default>
+			<summary>Automatic exchange rates</summary>
+			<description>Fetch currency exchange rates daily so amounts can be converted between currencies.</description>
+		</key>
 	</schema>
 </schemalist>
