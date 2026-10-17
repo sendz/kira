@@ -22,8 +22,9 @@ import { stripMarkdown } from './markdown.js';
 import { normalizeNumbers, formatNumber } from './format.js';
 import { convertUnit, isUnit } from './unit.js';
 import { isCurrency, formatWithSymbol } from './currencies.js';
+import { isAggregateKeyword, computeAggregate } from './aggregator.js';
 
-const TOTAL_LINE_REGEX = /^total\b\s*(?:=\s*(.*))?$/i;
+const AGGREGATE_LINE_REGEX = /^([A-Za-z]+)\b\s*(?:=\s*(.*))?$/i;
 const CONVERT_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s*([a-zA-Z]+)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
 const CONVERT_VARIABLE_REGEX = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
 const QUANTITY_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s+([a-zA-Z]+)\s*$/i;
@@ -54,19 +55,19 @@ export function insertResults(buffer, results) {
 function collectResults(text) {
     const scope = { values: {}, units: {}, currencies: {} };
     const results = [];
-    let sectionTotal = 0;
-    let sectionCurrency = undefined;
+    const pool = [];     // { value, currency } of non-aggregate result lines
+    const marks = {};    // keyword -> pool index after its last aggregate
 
     for (const [lineIndex, line] of text.split('\n').entries()) {
-        const total = line.match(TOTAL_LINE_REGEX);
-        if (total) {
-            const outcome = totalValue(total[1], scope, sectionTotal, sectionCurrency);
+        const aggregate = line.match(AGGREGATE_LINE_REGEX);
+        if (aggregate && isAggregateKeyword(aggregate[1])) {
+            const keyword = aggregate[1].toLowerCase();
+            const outcome = aggregateValue(keyword, aggregate[2], scope, pool, marks[keyword] ?? 0);
             if (outcome !== null) {
-                setMeasurement(scope, 'total', outcome);
+                setMeasurement(scope, keyword, outcome);
                 results.push({ lineIndex, value: outcome.value, currency: outcome.currency });
             }
-            sectionTotal = 0;
-            sectionCurrency = undefined;
+            marks[keyword] = pool.length;
             continue;
         }
 
@@ -74,20 +75,35 @@ function collectResults(text) {
         if (outcome === null)
             continue;
 
-        sectionTotal += outcome.value;
-        sectionCurrency = mergeCurrency(sectionCurrency, outcome.currency);
+        pool.push({ value: outcome.value, currency: outcome.currency });
         results.push({ lineIndex, value: outcome.value, currency: outcome.currency });
     }
 
     return results;
 }
 
-function totalValue(expression, scope, sectionTotal, sectionCurrency) {
+// Aggregates the values since this keyword's previous occurrence; a keyword
+// followed by "=" evaluates that expression instead, like the old total=.
+function aggregateValue(keyword, expression, scope, pool, start) {
     const trimmed = (expression ?? '').trim();
-    if (!trimmed)
-        return { value: sectionTotal, unit: null, currency: sectionCurrency ?? null };
+    if (trimmed)
+        return computeExpression(trimmed, scope);
 
-    return computeExpression(trimmed, scope);
+    const slice = pool.slice(start);
+    const value = computeAggregate(keyword, slice.map(entry => entry.value));
+    if (value === null)
+        return null;
+
+    const currency = keyword === 'count' ? null : sliceCurrency(slice);
+    return { value, unit: null, currency };
+}
+
+function sliceCurrency(entries) {
+    let currency;
+    for (const entry of entries)
+        currency = mergeCurrency(currency, entry.currency);
+
+    return currency ?? null;
 }
 
 function evaluateLine(line, scope) {

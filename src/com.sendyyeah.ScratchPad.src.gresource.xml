@@ -8,5 +8,6 @@
     <file>helpers/format.js</file>
     <file>helpers/unit.js</file>
     <file>helpers/currencies.js</file>
+    <file>helpers/aggregator.js</file>
   </gresource>
 </gresources>
