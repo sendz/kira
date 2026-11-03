@@ -173,6 +173,7 @@ export const KiraWindow = GObject.registerClass({
     newFile() {
         this._guardUnsaved(() => {
             this._currentFile = null;
+            clearResults(this._buffer, this._results);
             this._buffer.set_text('', -1);
             this._isModified = false;
             this._updateTitle();
@@ -219,6 +220,9 @@ export const KiraWindow = GObject.registerClass({
                 if (!success) return;
 
                 const text = new TextDecoder().decode(contents);
+                // Drop the old document's result marks before replacing the
+                // buffer, otherwise they collapse across the new text.
+                clearResults(this._buffer, this._results);
                 this._buffer.set_text(text, -1);
                 this._currentFile = file;
                 this._isModified = false;

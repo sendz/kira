@@ -48,6 +48,17 @@ test('assignments, aggregates and totals', () => {
     setLocaleOverride('');
 });
 
+test('reopens saved notes with stored results', () => {
+    setLocaleOverride('en-US');
+
+    eq(render('a: 5\t= 999\nb: 3\t= 999\nsum\t= 999'),
+       'a: 5\t= 5\nb: 3\t= 3\nsum\t= 8');
+    eq(render('# Heading\n\n> locale: en-US\n\na: 5\t= 5'),
+       '# Heading\n\n> locale: en-US\n\na: 5\t= 5');
+
+    setLocaleOverride('');
+});
+
 test('units and remembered units', () => {
     setLocaleOverride('id-ID');
 

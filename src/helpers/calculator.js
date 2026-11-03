@@ -31,6 +31,7 @@ const CONVERT_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s*([a-zA-Z]+
 const CONVERT_VARIABLE_REGEX = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
 const QUANTITY_REGEX = /^\s*(-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)\s+([a-zA-Z]+)\s*$/i;
 const CONVERT_EXPRESSION_REGEX = /^\s*(.+?)\s+(?:to|in)\s+([a-zA-Z]+)\s*$/i;
+const STORED_RESULT_REGEX = /\t= [^\n]*$/;
 
 export function clearResults(buffer, results) {
     for (const { start, end } of results) {
@@ -60,7 +61,9 @@ function collectResults(text) {
     const pool = [];     // { value, currency } of non-aggregate result lines
     const marks = {};    // keyword -> pool index after its last aggregate
 
-    for (const [lineIndex, line] of text.split('\n').entries()) {
+    for (const [lineIndex, rawLine] of text.split('\n').entries()) {
+        // Results are written into the file, so ignore them when reading back.
+        const line = rawLine.replace(STORED_RESULT_REGEX, '');
         const aggregate = line.match(AGGREGATE_LINE_REGEX);
         if (aggregate && isAggregateKeyword(aggregate[1])) {
             const keyword = aggregate[1].toLowerCase();
@@ -292,7 +295,7 @@ function insertResult(buffer, results, { lineIndex, value, currency, date, inclu
 
     const lineStart = iter.get_offset();
     iter.forward_to_line_end();
-    const lineEnd = iter.get_offset();
+    const lineEnd = removeStoredResult(buffer, lineStart, iter.get_offset());
 
     const display = date
         ? formatDate(date, includeTime)
@@ -300,7 +303,7 @@ function insertResult(buffer, results, { lineIndex, value, currency, date, inclu
             ? formatWithSymbol(value, currency)
             : formatNumber(value);
     const result = `\t= ${display}`;
-    buffer.insert(iter, result, -1);
+    buffer.insert(buffer.get_iter_at_offset(lineEnd), result, -1);
 
     const resultStart = buffer.get_iter_at_offset(lineEnd);
     const resultEnd = buffer.get_iter_at_offset(lineEnd + result.length);
@@ -312,6 +315,22 @@ function insertResult(buffer, results, { lineIndex, value, currency, date, inclu
         start: buffer.create_mark(null, resultStart, false),
         end: buffer.create_mark(null, resultEnd, true),
     });
+}
+
+function removeStoredResult(buffer, lineStart, lineEnd) {
+    const line = buffer.get_text(
+        buffer.get_iter_at_offset(lineStart),
+        buffer.get_iter_at_offset(lineEnd),
+        true);
+    const match = line.match(STORED_RESULT_REGEX);
+    if (!match)
+        return lineEnd;
+
+    const resultStart = lineStart + match.index;
+    buffer.delete(
+        buffer.get_iter_at_offset(resultStart),
+        buffer.get_iter_at_offset(lineEnd));
+    return resultStart;
 }
 
 export function evaluate(expr, scope) {
